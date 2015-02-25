@@ -932,8 +932,17 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 #define acpi_probe_device_table(t)	({ int __r = 0; __r;})
 #endif
 
-#if defined(CONFIG_ACPI) && defined(CONFIG_SERIAL_EARLYCON)
+#if defined(CONFIG_ACPI)
+# if defined(CONFIG_SERIAL_EARLYCON)
 int __init acpi_early_console_probe(void);
+# endif
+bool acpi_console_check(struct acpi_device *adev, char *name, int index);
+#else
+static inline bool acpi_console_check(struct acpi_device *adev, char *name,
+				      int index)
+{
+	return FALSE;
+}
 #endif
 
 #endif	/*_LINUX_ACPI_H*/
