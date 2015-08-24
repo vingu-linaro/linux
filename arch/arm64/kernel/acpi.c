@@ -212,6 +212,8 @@ void __init acpi_boot_table_init(void)
 		if (!param_acpi_force)
 			disable_acpi();
 	}
+
+	acpi_early_console_probe();
 }
 
 #ifdef CONFIG_ACPI_APEI

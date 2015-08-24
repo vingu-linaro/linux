@@ -10,6 +10,7 @@ ccflags-$(CONFIG_ACPI_DEBUG)	+= -DACPI_DEBUG_OUTPUT
 #
 obj-y				+= tables.o
 obj-$(CONFIG_X86)		+= blacklist.o
+obj-y				+= console.o
 
 #
 # ACPI Core Subsystem (Interpreter)

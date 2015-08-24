@@ -838,7 +838,7 @@ int __init early_init_dt_scan_chosen_serial(void)
 		if (addr == OF_BAD_ADDR)
 			return -ENXIO;
 
-		of_setup_earlycon(addr, match->data);
+		setup_earlycon_driver(addr, match->data);
 		return 0;
 	}
 	return -ENODEV;
