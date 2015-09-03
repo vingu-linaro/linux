@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <linux/sizes.h>
 #include <linux/mod_devicetable.h>
@@ -188,7 +189,8 @@ static int __init param_setup_earlycon(char *buf)
 	 * don't generate a warning from parse_early_params() in that case
 	 */
 	if (!buf || !buf[0])
-		return 0;
+		if (IS_ENABLED(CONFIG_OF_FLATTREE))
+			return early_init_dt_scan_chosen_serial();
 
 	err = setup_earlycon(buf);
 	if (err == -ENOENT || err == -EALREADY)
