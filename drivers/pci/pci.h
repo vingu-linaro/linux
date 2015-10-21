@@ -80,6 +80,7 @@ void pci_config_pm_runtime_put(struct pci_dev *dev);
 void pci_pm_init(struct pci_dev *dev);
 void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
+struct pci_host_bridge *pci_find_host_bridge(struct pci_bus *bus);
 
 static inline void pci_wakeup_event(struct pci_dev *dev)
 {
