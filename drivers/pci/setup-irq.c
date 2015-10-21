@@ -58,7 +58,7 @@ static void pdev_fixup_irq(struct pci_dev *dev,
 }
 
 void pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
-		    int (*map_irq)(const struct pci_dev *, u8, u8))
+		    int (*map_irq)(struct pci_dev *, u8, u8))
 {
 	struct pci_dev *dev = NULL;
 
