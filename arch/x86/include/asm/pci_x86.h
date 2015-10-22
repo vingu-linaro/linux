@@ -90,6 +90,7 @@ extern unsigned int pcibios_irq_mask;
 
 extern raw_spinlock_t pci_config_lock;
 
+extern int pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin);
 extern int (*pcibios_enable_irq)(struct pci_dev *dev);
 extern void (*pcibios_disable_irq)(struct pci_dev *dev);
 
@@ -119,7 +120,7 @@ extern int __init pci_acpi_init(void);
 extern void __init pcibios_irq_init(void);
 extern int __init pcibios_init(void);
 extern int pci_legacy_init(void);
-extern void pcibios_fixup_irqs(void);
+extern int pcibios_fixup_irq(struct pci_dev *dev, u8 pin);
 
 /* pci-mmconfig.c */
 
@@ -200,9 +201,9 @@ static inline void mmio_config_writel(void __iomem *pos, u32 val)
 #  define x86_default_pci_init		pci_legacy_init
 # endif
 # define x86_default_pci_init_irq	pcibios_irq_init
-# define x86_default_pci_fixup_irqs	pcibios_fixup_irqs
+# define x86_default_pci_fixup_irq	pcibios_fixup_irq
 #else
 # define x86_default_pci_init		NULL
 # define x86_default_pci_init_irq	NULL
-# define x86_default_pci_fixup_irqs	NULL
+# define x86_default_pci_fixup_irq	NULL
 #endif

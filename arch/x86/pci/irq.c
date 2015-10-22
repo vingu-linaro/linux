@@ -1021,47 +1021,38 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	return 1;
 }
 
-void __init pcibios_fixup_irqs(void)
+int pcibios_fixup_irq(struct pci_dev *dev, u8 pin)
 {
-	struct pci_dev *dev = NULL;
-	u8 pin;
-
+	int irq = dev->irq;
 	DBG(KERN_DEBUG "PCI: IRQ fixup\n");
-	for_each_pci_dev(dev) {
-		/*
-		 * If the BIOS has set an out of range IRQ number, just
-		 * ignore it.  Also keep track of which IRQ's are
-		 * already in use.
-		 */
-		if (dev->irq >= 16) {
-			dev_dbg(&dev->dev, "ignoring bogus IRQ %d\n", dev->irq);
-			dev->irq = 0;
-		}
-		/*
-		 * If the IRQ is already assigned to a PCI device,
-		 * ignore its ISA use penalty
-		 */
-		if (pirq_penalty[dev->irq] >= 100 &&
-				pirq_penalty[dev->irq] < 100000)
-			pirq_penalty[dev->irq] = 0;
-		pirq_penalty[dev->irq]++;
+	/*
+	 * If the BIOS has set an out of range IRQ number, just
+	 * ignore it.  Also keep track of which IRQ's are
+	 * already in use.
+	 */
+	if (irq >= 16) {
+		dev_dbg(&dev->dev, "ignoring bogus IRQ %d\n", irq);
+		irq = 0;
 	}
+	/*
+	 * If the IRQ is already assigned to a PCI device,
+	 * ignore its ISA use penalty
+	 */
+	if (pirq_penalty[irq] >= 100 &&
+			pirq_penalty[irq] < 100000)
+		pirq_penalty[irq] = 0;
+	pirq_penalty[irq]++;
 
-	if (io_apic_assign_pci_irqs)
-		return;
+	if (io_apic_assign_pci_irqs || !pin)
+		return irq;
 
-	dev = NULL;
-	for_each_pci_dev(dev) {
-		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
-		if (!pin)
-			continue;
+	/*
+	 * Still no IRQ? Try to lookup one...
+	 */
+	if (!irq && pcibios_lookup_irq(dev, 0))
+		irq = dev->irq;
 
-		/*
-		 * Still no IRQ? Try to lookup one...
-		 */
-		if (!dev->irq)
-			pcibios_lookup_irq(dev, 0);
-	}
+	return irq;
 }
 
 /*
@@ -1174,6 +1165,7 @@ int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 		struct pci_sysdata *sd = bridge->bus->sysdata;
 		ACPI_COMPANION_SET(&bridge->dev, sd->companion);
 	}
+	bridge->map_irq = pci_map_irq;
 	return 0;
 }
 
@@ -1199,6 +1191,14 @@ void pcibios_penalize_isa_irq(int irq, int active)
 	else
 #endif
 		pirq_penalize_isa_irq(irq, active);
+}
+
+int pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+{
+	dev->irq = pcibios_fixup_irq(dev, pin);
+	if (pcibios_enable_irq(dev))
+		return -1;
+	return dev->irq;
 }
 
 static int pirq_enable_irq(struct pci_dev *dev)
