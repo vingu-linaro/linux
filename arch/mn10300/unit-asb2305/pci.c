@@ -398,14 +398,6 @@ char *__init pcibios_setup(char *str)
 	return str;
 }
 
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	int err;
-
-	err = pci_enable_resources(dev, mask);
-	return err;
-}
-
 /*
  * disable the ethernet chipset
  */
