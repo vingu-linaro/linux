@@ -13,6 +13,8 @@
 #include <asm/leon.h>
 #include <asm/leon_pci.h>
 
+int (*leon_pci_map_irq)(const struct pci_dev *dev, u8 slot, u8 pin);
+
 /* The LEON architecture does not rely on a BIOS or bootloader to setup
  * PCI for us. The Linux generic routines are used to setup resources,
  * reset values of configuration-space register settings are preserved.
@@ -39,12 +41,18 @@ void leon_pci_init(struct platform_device *ofdev, struct leon_pci_info *info)
 		return;
 	}
 
-	/* Setup IRQs of all devices using custom routines */
-	pci_fixup_irqs(pci_common_swizzle, info->map_irq);
+	leon_pci_map_irq = info->map_irq;
 
 	/* Assign devices with resources */
 	pci_assign_unassigned_resources();
 	pci_bus_add_devices(root_bus);
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = leon_pci_map_irq;
+	return 0;
 }
 
 void pcibios_fixup_bus(struct pci_bus *pbus)
