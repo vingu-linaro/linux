@@ -387,7 +387,6 @@ int __init pcibios_init(void)
 	bus = pci_scan_root_bus(NULL, 0, pci_root_ops, NULL, &resources);
 
 	pcibios_irq_init();
-	pcibios_fixup_irqs();
 	pcibios_resource_survey();
 	if (!bus)
 		return 0;
