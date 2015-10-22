@@ -887,9 +887,6 @@ int __init pcibios_init(void)
 		next_busno = bus->busn_res.end + 1;
 	}
 
-	/* Do machine dependent PCI interrupt routing */
-	pci_fixup_irqs(pci_common_swizzle, tile_map_irq);
-
 	/*
 	 * This comes from the generic Linux PCI driver.
 	 *
@@ -1037,6 +1034,13 @@ alloc_mem_map_failed:
 	return 0;
 }
 subsys_initcall(pcibios_init);
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = tile_map_irq;
+	return 0;
+}
 
 /* No bus fixups needed. */
 void pcibios_fixup_bus(struct pci_bus *bus)
