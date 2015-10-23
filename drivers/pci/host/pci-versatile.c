@@ -135,6 +135,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	u32 val;
 	void __iomem *local_pci_cfg_base;
 	struct pci_bus *bus;
+	struct pci_host_bridge *bridge;
 	LIST_HEAD(pci_res);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -211,8 +212,10 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, &sys, &pci_res);
 	if (!bus)
 		return -ENOMEM;
-
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+	
+	bridge = pci_find_host_bridge(bus);
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = of_irq_parse_and_map_pci;
 	pci_assign_unassigned_bus_resources(bus);
 	pci_bus_add_devices(bus);
 
