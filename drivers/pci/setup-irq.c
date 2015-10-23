@@ -64,22 +64,3 @@ void pci_assign_irq(struct pci_dev *dev)
 	   the real IRQ to use; the device does not use it. */
 	pcibios_update_irq(dev, irq);
 }
-
-void pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
-		    int (*map_irq)(struct pci_dev *, u8, u8))
-{
-	/* This code should be removed shortly, but in the mean time
-	   it can wrap the new codepath in order to allow arches
-	   still using it to continue working */
-	struct pci_dev *dev = NULL;
-	struct pci_host_bridge *hbrg = NULL;
-
-	for_each_pci_dev(dev)
-		hbrg = pci_find_host_bridge(dev->bus);
-		hbrg->swizzle_irq = swizzle;
-		hbrg->map_irq = map_irq;
-		pci_assign_irq(dev);
-		hbrg->swizzle_irq = NULL;
-		hbrg->map_irq = NULL;
-}
-EXPORT_SYMBOL_GPL(pci_fixup_irqs);
