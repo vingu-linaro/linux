@@ -1153,16 +1153,6 @@ void __init pcibios_irq_init(void)
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
-	/*
-	 * We pass NULL as parent to pci_create_root_bus(), so if it is not NULL
-	 * here, pci_create_root_bus() has been called by someone else and
-	 * sysdata is likely to be different from what we expect.  Let it go in
-	 * that case.
-	 */
-	if (!bridge->dev.parent) {
-		struct pci_sysdata *sd = bridge->bus->sysdata;
-		ACPI_COMPANION_SET(&bridge->dev, sd->companion);
-	}
 	bridge->map_irq = pci_map_irq;
 	return 0;
 }
