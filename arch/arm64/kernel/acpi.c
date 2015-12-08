@@ -182,13 +182,10 @@ out:
 void __init acpi_boot_table_init(void)
 {
 	/*
-	 * Enable ACPI instead of device tree unless
-	 * - ACPI has been disabled explicitly (acpi=off), or
-	 * - the device tree is not empty (it has more than just a /chosen node)
-	 *   and ACPI has not been force enabled (acpi=force)
+	 * ACPI is disabled at this point. Leave it that way
+	 * if acpi=off was seen.
 	 */
-	if (param_acpi_off ||
-	    (!param_acpi_force && of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
+	if (param_acpi_off)
 		return;
 
 	/*
