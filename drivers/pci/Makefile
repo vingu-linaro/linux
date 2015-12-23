@@ -30,6 +30,11 @@ obj-$(CONFIG_PCI_ATS) += ats.o
 obj-$(CONFIG_PCI_IOV) += iov.o
 
 #
+# Enhanced Configuration Access Mechanism (ECAM)
+#
+obj-$(CONFIG_PCI_ECAM)	+= ecam.o
+
+#
 # ACPI Related PCI FW Functions
 # ACPI _DSM provided firmware instance and string name
 #
