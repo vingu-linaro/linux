@@ -102,6 +102,10 @@
 			startup-delay-us = <70000>;
 			enable-active-high;
 		};
+
+		uart1: uart@f7111000 {
+			status = "ok";
+		};
 	};
 
 	pmic: pmic@f8000000 {
