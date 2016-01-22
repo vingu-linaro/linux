@@ -40,19 +40,19 @@ void __init pcibios_irq_init(void)
 {
 }
 
-void __init pcibios_fixup_irqs(void)
+int pcibios_map_irq(struct pci_dev *dev, uint8_t slot, uint8_t pin)
 {
-	struct pci_dev *dev = NULL;
-	uint8_t line, pin;
+	int irq;
 
-	for_each_pci_dev(dev) {
-		pci_read_config_byte(dev, PCI_INTERRUPT_PIN, &pin);
-		if (pin) {
-			dev->irq = pci_bus0_irq_routing[PCI_SLOT(dev->devfn)][pin - 1];
-			pci_write_config_byte(dev, PCI_INTERRUPT_LINE, dev->irq);
-		}
-		pci_read_config_byte(dev, PCI_INTERRUPT_LINE, &line);
-	}
+	irq = pci_bus0_irq_routing[PCI_SLOT(dev->devfn)][pin - 1];
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
+	return irq;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->map_irq = pcibios_map_irq;
+	return 0;
 }
 
 void pcibios_enable_irq(struct pci_dev *dev)

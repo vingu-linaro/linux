@@ -337,10 +337,6 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	} else {
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
-
-		dev->irq = sd->op->archdata.irqs[0];
-		if (dev->irq == 0xffffffff)
-			dev->irq = PCI_IRQ_NONE;
 	}
 
 	pci_parse_of_addrs(sd->op, node, dev);
@@ -352,6 +348,25 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 
 	return dev;
 }
+
+int pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+{
+	int irq;
+	struct platform_device *op = of_find_device_by_node(dev->sysdata);
+
+	irq = op->archdata.irqs[0];
+	if (irq == 0xffffffff)
+		irq = PCI_IRQ_NONE;
+	return irq;
+}
+
+#ifndef CONFIG_LEON_PCI
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->map_irq = pci_map_irq;
+	return 0;
+}
+#endif
 
 static void apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 {

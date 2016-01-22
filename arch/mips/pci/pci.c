@@ -247,11 +247,16 @@ static int __init pcibios_init(void)
 	for (hose = hose_head; hose; hose = hose->next)
 		pcibios_scanbus(hose);
 
-	pci_fixup_irqs(pci_common_swizzle, pcibios_map_irq);
-
 	pci_initialized = 1;
 
 	return 0;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+       bridge->swizzle_irq = pci_common_swizzle;
+       bridge->map_irq = pcibios_map_irq;
+       return 0;
 }
 
 subsys_initcall(pcibios_init);

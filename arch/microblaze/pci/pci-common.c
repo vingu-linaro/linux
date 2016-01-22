@@ -855,10 +855,13 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		 * code and is needed by the DMA init
 		 */
 		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
-
-		/* Read default IRQs and fixup if necessary */
-		dev->irq = of_irq_parse_and_map_pci(dev, 0, 0);
 	}
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	return 0;
 }
 
 void pcibios_fixup_bus(struct pci_bus *bus)

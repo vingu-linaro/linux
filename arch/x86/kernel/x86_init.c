@@ -80,7 +80,6 @@ struct x86_init_ops x86_init __initdata = {
 	.pci = {
 		.init			= x86_default_pci_init,
 		.init_irq		= x86_default_pci_init_irq,
-		.fixup_irqs		= x86_default_pci_fixup_irqs,
 	},
 };
 

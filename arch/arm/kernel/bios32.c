@@ -410,6 +410,13 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->swizzle_irq = pcibios_swizzle;
+	bridge->map_irq = pcibios_map_irq;
+	return 0;
+}
+
 static int pcibios_init_resources(int busnr, struct pci_sys_data *sys)
 {
 	int ret;
@@ -509,8 +516,6 @@ void pci_common_init_dev(struct device *parent, struct hw_pci *hw)
 	pcibios_init_hw(parent, hw, &head);
 	if (hw->postinit)
 		hw->postinit();
-
-	pci_fixup_irqs(pcibios_swizzle, pcibios_map_irq);
 
 	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;

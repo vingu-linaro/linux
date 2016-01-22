@@ -1257,6 +1257,8 @@ static int do_pci_enable_device(struct pci_dev *dev, int bars)
 	if (err < 0 && err != -EIO)
 		return err;
 
+	pci_assign_irq(dev);
+
 	bridge = pci_upstream_bridge(dev);
 	if (bridge)
 		pcie_aspm_powersave_config_link(bridge);

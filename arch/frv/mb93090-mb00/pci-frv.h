@@ -28,5 +28,4 @@ extern struct pci_ops *__nongpreldata pci_root_ops;
 extern unsigned int pcibios_irq_mask;
 
 void pcibios_irq_init(void);
-void pcibios_fixup_irqs(void);
 void pcibios_enable_irq(struct pci_dev *dev);

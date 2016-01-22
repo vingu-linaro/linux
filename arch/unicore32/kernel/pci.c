@@ -101,7 +101,7 @@ void pci_puv3_preinit(void)
 	writel(readl(PCIBRI_CMD) | PCIBRI_CMD_IO | PCIBRI_CMD_MEM, PCIBRI_CMD);
 }
 
-static int __init pci_puv3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
+static int pci_puv3_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
 	if (dev->bus->number == 0) {
 #ifdef CONFIG_ARCH_FPGA /* 4 pci slots */
@@ -263,8 +263,6 @@ static int __init pci_common_init(void)
 	if (!puv3_bus)
 		panic("PCI: unable to scan bus!");
 
-	pci_fixup_irqs(pci_common_swizzle, pci_puv3_map_irq);
-
 	if (!pci_has_flag(PCI_PROBE_ONLY)) {
 		pci_bus_size_bridges(puv3_bus);
 		pci_bus_assign_resources(puv3_bus);
@@ -273,6 +271,13 @@ static int __init pci_common_init(void)
 	return 0;
 }
 subsys_initcall(pci_common_init);
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = pci_puv3_map_irq;
+	return 0;
+}
 
 char * __init pcibios_setup(char *str)
 {

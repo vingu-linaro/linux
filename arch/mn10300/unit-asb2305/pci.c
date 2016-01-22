@@ -375,11 +375,14 @@ static int __init pcibios_init(void)
 	bus = pci_scan_root_bus(NULL, 0, &pci_direct_ampci, NULL, &resources);
 	if (!bus)
 		return 0;
-
-	pcibios_irq_init();
-	pcibios_fixup_irqs();
 	pcibios_resource_survey();
 	pci_bus_add_devices(bus);
+	return 0;
+}
+
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->map_irq = pci_map_irq;
 	return 0;
 }
 
@@ -393,16 +396,6 @@ char *__init pcibios_setup(char *str)
 	}
 
 	return str;
-}
-
-int pcibios_enable_device(struct pci_dev *dev, int mask)
-{
-	int err;
-
-	err = pci_enable_resources(dev, mask);
-	if (err == 0)
-		pcibios_enable_irq(dev);
-	return err;
 }
 
 /*

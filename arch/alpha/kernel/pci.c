@@ -354,7 +354,6 @@ common_init_pci(void)
 	pcibios_claim_console_setup();
 
 	pci_assign_unassigned_resources();
-	pci_fixup_irqs(alpha_mv.pci_swizzle, alpha_mv.pci_map_irq);
 	for (hose = hose_head; hose; hose = hose->next) {
 		bus = hose->bus;
 		if (bus)
@@ -362,6 +361,12 @@ common_init_pci(void)
 	}
 }
 
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->swizzle_irq = alpha_mv.pci_swizzle;
+	bridge->map_irq = alpha_mv.pci_map_irq;
+	return 0;
+}
 
 struct pci_controller * __init
 alloc_pci_controller(void)

@@ -324,6 +324,7 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	int ret;
 	void *sysdata;
 	struct pci_bus *bus;
+	struct pci_host_bridge *bridge;
 
 	if (!pcie || !pcie->dev || !pcie->base)
 		return -EINVAL;
@@ -372,10 +373,11 @@ int iproc_pcie_setup(struct iproc_pcie *pcie, struct list_head *res)
 	}
 
 	iproc_pcie_enable(pcie);
-
+	bridge = pci_find_host_bridge(bus);
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = pcie->map_irq;
 	pci_scan_child_bus(bus);
 	pci_assign_unassigned_bus_resources(bus);
-	pci_fixup_irqs(pci_common_swizzle, pcie->map_irq);
 	pci_bus_add_devices(bus);
 
 	return 0;

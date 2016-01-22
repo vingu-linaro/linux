@@ -60,9 +60,6 @@ struct irq_routing_table {
 } __attribute__((packed));
 
 extern unsigned int pcibios_irq_mask;
-
-extern void pcibios_irq_init(void);
-extern void pcibios_fixup_irqs(void);
-extern void pcibios_enable_irq(struct pci_dev *dev);
+extern int pci_map_irq(struct pci_dev *, u8 slot, u8 pin);
 
 #endif /* PCI_ASB2305_H */

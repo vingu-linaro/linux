@@ -232,7 +232,7 @@ struct pci_controller* pci_find_hose_for_OF_device(struct device_node* node)
  * If the interrupt is used, then gets the interrupt line from the
  * openfirmware and sets it in the pci_dev and pci_config line.
  */
-static int pci_read_irq_line(struct pci_dev *pci_dev)
+static int pci_read_irq_line(struct pci_dev *pci_dev, u8 pin)
 {
 	struct of_phandle_args oirq;
 	unsigned int virq;
@@ -244,7 +244,7 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 #endif
 	/* Try to get a mapping from the device-tree */
 	if (of_irq_parse_pci(pci_dev, &oirq)) {
-		u8 line, pin;
+		u8 line;
 
 		/* If that fails, lets fallback to what is in the config
 		 * space and map that through the default controller. We
@@ -253,10 +253,6 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 		 * either provide a proper interrupt tree or don't use this
 		 * function.
 		 */
-		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_PIN, &pin))
-			return -1;
-		if (pin == 0)
-			return -1;
 		if (pci_read_config_byte(pci_dev, PCI_INTERRUPT_LINE, &line) ||
 		    line == 0xff || line == 0) {
 			return -1;
@@ -281,9 +277,16 @@ static int pci_read_irq_line(struct pci_dev *pci_dev)
 
 	pr_debug(" Mapped to linux irq %d\n", virq);
 
-	pci_dev->irq = virq;
+	return virq;
+}
 
-	return 0;
+static int pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
+{
+	/* Read default IRQs and fixup if necessary */
+	dev->irq = pci_read_irq_line(dev, pin);
+	if (ppc_md.pci_irq_fixup)
+		ppc_md.pci_irq_fixup(dev);
+	return dev->irq;
 }
 
 /*
@@ -785,6 +788,7 @@ int pci_proc_domain(struct pci_bus *bus)
 
 int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
+	bridge->map_irq = pci_map_irq;
 	if (ppc_md.pcibios_root_bridge_prepare)
 		return ppc_md.pcibios_root_bridge_prepare(bridge);
 
@@ -984,11 +988,6 @@ static void pcibios_setup_device(struct pci_dev *dev)
 	phb = pci_bus_to_host(dev->bus);
 	if (phb->controller_ops.dma_dev_setup)
 		phb->controller_ops.dma_dev_setup(dev);
-
-	/* Read default IRQs and fixup if necessary */
-	pci_read_irq_line(dev);
-	if (ppc_md.pci_irq_fixup)
-		ppc_md.pci_irq_fixup(dev);
 }
 
 int pcibios_add_device(struct pci_dev *dev)

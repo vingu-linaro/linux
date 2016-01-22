@@ -80,9 +80,10 @@ int pcibios_enable_resources(struct pci_dev *dev, int mask)
 	return 0;
 }
 
-int pcibios_enable_irq(struct pci_dev *dev)
+int pcibios_enable_irq(struct pci_dev *dev, u8 slot, u8 pin)
 {
-	dev->irq = EXT_INTR_VECT;
+	if (!dev->msi_enabled)
+		dev->irq = EXT_INTR_VECT;
 	return 0;
 }
 
@@ -92,8 +93,11 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 
 	if ((err = pcibios_enable_resources(dev, mask)) < 0)
 		return err;
+	return 0;
+}
 
-	if (!dev->msi_enabled)
-		pcibios_enable_irq(dev);
+int pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
+{
+	bridge->map_irq = pcibios_enable_irq;
 	return 0;
 }
