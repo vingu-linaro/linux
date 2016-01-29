@@ -317,6 +317,7 @@ int vgic_v2_acpi_probe(struct acpi_madt_generic_interrupt *vgic_acpi,
 		 vgic->maint_irq);
 
 	vgic->type = VGIC_V2;
+	vgic->max_gic_vcpus = VGIC_V2_MAX_CPUS;
 	*ops = &vgic_v2_ops;
 	*params = vgic;
 
