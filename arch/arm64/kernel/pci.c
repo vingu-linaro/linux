@@ -59,3 +59,12 @@ int pcibios_add_device(struct pci_dev *dev)
 
 	return 0;
 }
+
+#ifdef CONFIG_NUMA
+int pcibus_to_node(struct pci_bus *bus)
+{
+	return dev_to_node(&bus->dev);
+}
+EXPORT_SYMBOL(pcibus_to_node);
+#endif
+
