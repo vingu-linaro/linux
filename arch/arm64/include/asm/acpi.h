@@ -17,6 +17,7 @@
 
 #include <asm/cputype.h>
 #include <asm/smp_plat.h>
+#include <asm/tlbflush.h>
 
 /* Macros for consistency checks of the GICC subtable of MADT */
 #define ACPI_MADT_GICC_LENGTH	\
@@ -94,7 +95,12 @@ static inline const char *acpi_get_enable_method(int cpu)
 
 #ifdef	CONFIG_ACPI_APEI
 pgprot_t arch_apei_get_mem_attribute(phys_addr_t addr);
-#endif
+
+static inline void arch_apei_flush_tlb_one(unsigned long addr)
+{
+	flush_tlb_kernel_range(addr, addr + PAGE_SIZE);
+}
+#endif /* CONFIG_ACPI_APEI */
 
 #ifdef CONFIG_ACPI_NUMA
 int arm64_acpi_numa_init(void);
@@ -103,5 +109,4 @@ void acpi_numa_set_node_info(unsigned int cpu, u64 hwid);
 static inline int arm64_acpi_numa_init(void) { return -ENODEV; }
 static inline void acpi_numa_set_node_info(unsigned int cpu, u64 hwid) { }
 #endif /* CONFIG_ACPI_NUMA */
-
 #endif /*_ASM_ACPI_H*/
