@@ -143,7 +143,6 @@ static struct console *exclusive_console;
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int selected_console = -1;
-static int preferred_console = -1;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
@@ -2431,6 +2430,25 @@ static int __init keep_bootcon_setup(char *str)
 
 early_param("keep_bootcon", keep_bootcon_setup);
 
+static DEFINE_MUTEX(acpi_consoles_delayed_mutex);
+static struct console *acpi_consoles_delayed;
+
+void acpi_register_consoles_try_again(void)
+{
+	mutex_lock(&acpi_consoles_delayed_mutex);
+	while (acpi_consoles_delayed) {
+
+		struct console *c = acpi_consoles_delayed;
+
+		acpi_consoles_delayed = acpi_consoles_delayed->next;
+
+		mutex_unlock(&acpi_consoles_delayed_mutex);
+		register_console(c);
+		mutex_lock(&acpi_consoles_delayed_mutex);
+	}
+	mutex_unlock(&acpi_consoles_delayed_mutex);
+}
+
 /*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
@@ -2456,6 +2474,7 @@ void register_console(struct console *newcon)
 	unsigned long flags;
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
+	static bool preferred_console;
 
 	if (console_drivers)
 		for_each_console(bcon)
@@ -2482,15 +2501,15 @@ void register_console(struct console *newcon)
 	if (console_drivers && console_drivers->flags & CON_BOOT)
 		bcon = console_drivers;
 
-	if (preferred_console < 0 || bcon || !console_drivers)
-		preferred_console = selected_console;
+	if (!preferred_console || bcon || !console_drivers)
+		preferred_console = selected_console >= 0;
 
 	/*
 	 *	See if we want to use this console driver. If we
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (preferred_console < 0) {
+	if (!preferred_console) {
 		if (newcon->index < 0)
 			newcon->index = 0;
 		if (newcon->setup == NULL ||
@@ -2498,7 +2517,7 @@ void register_console(struct console *newcon)
 			newcon->flags |= CON_ENABLED;
 			if (newcon->device) {
 				newcon->flags |= CON_CONSDEV;
-				preferred_console = 0;
+				preferred_console = true;
 			}
 		}
 	}
@@ -2533,13 +2552,35 @@ void register_console(struct console *newcon)
 		newcon->flags |= CON_ENABLED;
 		if (i == selected_console) {
 			newcon->flags |= CON_CONSDEV;
-			preferred_console = selected_console;
+			preferred_console = true;
 		}
 		break;
 	}
 
-	if (!(newcon->flags & CON_ENABLED))
-		return;
+	if (!(newcon->flags & CON_ENABLED)) {
+		char *opts;
+		int err;
+
+		if (newcon->index < 0)
+			newcon->index = 0;
+
+		err = console_acpi_match(newcon, &opts);
+
+		if (err == -EAGAIN) {
+			mutex_lock(&acpi_consoles_delayed_mutex);
+			newcon->next = acpi_consoles_delayed;
+			acpi_consoles_delayed = newcon;
+			mutex_unlock(&acpi_consoles_delayed_mutex);
+			return;
+		} else if (err < 0) {
+			return;
+		} else {
+			if (newcon->setup && newcon->setup(newcon, opts) != 0)
+				return;
+			newcon->flags |= CON_ENABLED | CON_CONSDEV;
+			preferred_console = true;
+		}
+	}
 
 	/*
 	 * If we have a bootconsole, and are switching to a real console,
@@ -2612,34 +2653,41 @@ void register_console(struct console *newcon)
 }
 EXPORT_SYMBOL(register_console);
 
+static int delete_from_console_list(struct console **list, struct console *c)
+{
+	while (*list) {
+		struct console *cur = *list;
+
+		if (cur == c) {
+			*list = cur->next;
+			return 0;
+		}
+		list = &cur->next;
+	}
+	return 1;
+}
+
 int unregister_console(struct console *console)
 {
-        struct console *a, *b;
 	int res;
 
 	pr_info("%sconsole [%s%d] disabled\n",
 		(console->flags & CON_BOOT) ? "boot" : "" ,
 		console->name, console->index);
 
+	mutex_lock(&acpi_consoles_delayed_mutex);
+	res = delete_from_console_list(&acpi_consoles_delayed, console);
+	mutex_unlock(&acpi_consoles_delayed_mutex);
+	if (res == 0)
+		return res;
+
 	res = _braille_unregister_console(console);
 	if (res)
 		return res;
 
-	res = 1;
 	console_lock();
-	if (console_drivers == console) {
-		console_drivers=console->next;
-		res = 0;
-	} else if (console_drivers) {
-		for (a=console_drivers->next, b=console_drivers ;
-		     a; b=a, a=b->next) {
-			if (a == console) {
-				b->next = a->next;
-				res = 0;
-				break;
-			}
-		}
-	}
+
+	res = delete_from_console_list(&console_drivers, console);
 
 	if (!res && (console->flags & CON_EXTENDED))
 		nr_ext_console_drivers--;
