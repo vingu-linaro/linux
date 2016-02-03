@@ -13,6 +13,7 @@
 #include <linux/phy.h>
 #include <linux/kernel.h>
 #include <linux/if_vlan.h>
+#include <linux/regmap.h>
 #include "hns_dsaf_main.h"
 
 struct dsaf_device;
@@ -310,8 +311,8 @@ struct hns_mac_cb {
 	struct mac_priv priv;
 	u8 __iomem *vaddr;
 	u8 __iomem *cpld_vaddr;
-	u8 __iomem *sys_ctl_vaddr;
 	u8 __iomem *serdes_vaddr;
+	struct regmap *sys_ctl_vaddr;
 	struct mac_entry_idx addr_entry_idx[DSAF_MAX_VM_NUM];
 	u8 sfp_prsnt;
 	u8 cpld_led_value;
@@ -330,7 +331,7 @@ struct hns_mac_cb {
 	phy_interface_t phy_if;
 	enum hnae_loop loop_mode;
 
-	struct device_node *phy_node;
+	struct fwnode_handle *phy_fwnode;
 
 	struct mac_hw_stats hw_stats;
 };
@@ -425,8 +426,8 @@ void mac_adjust_link(struct net_device *net_dev);
 void hns_mac_get_link_status(struct hns_mac_cb *mac_cb,	u32 *link_status);
 int hns_mac_change_vf_addr(struct hns_mac_cb *mac_cb, u32 vmid, char *addr);
 int hns_mac_set_multi(struct hns_mac_cb *mac_cb,
-		      u32 port_num, char *addr, u8 en);
-int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, u8 en);
+		      u32 port_num, char *addr, bool enable);
+int hns_mac_vm_config_bc_en(struct hns_mac_cb *mac_cb, u32 vm, bool enable);
 void hns_mac_start(struct hns_mac_cb *mac_cb);
 void hns_mac_stop(struct hns_mac_cb *mac_cb);
 int hns_mac_del_mac(struct hns_mac_cb *mac_cb, u32 vfn, char *mac);
