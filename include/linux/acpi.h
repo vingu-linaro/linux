@@ -488,6 +488,7 @@ int acpi_device_modalias(struct device *, char *, int);
 void acpi_walk_dep_device_list(acpi_handle handle);
 
 struct platform_device *acpi_create_platform_device(struct acpi_device *);
+struct platform_device *acpi_dev_find_plat_dev(struct acpi_device *adev);
 #define ACPI_PTR(_ptr)	(_ptr)
 
 #ifdef CONFIG_ACPI_GTDT
@@ -830,6 +831,8 @@ struct acpi_reference_args {
 #ifdef CONFIG_ACPI
 int acpi_dev_get_property(struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
+struct acpi_device *acpi_dev_get_reference_device(struct acpi_device *adev,
+						  const char *name, size_t index);
 int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
 				     const char *name, size_t index,
 				     struct acpi_reference_args *args);
@@ -907,6 +910,11 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 {
 	return -ENXIO;
 }
+static inline struct acpi_device *acpi_dev_get_reference_device(struct acpi_device *adev,
+						  const char *name, size_t index)
+{
+	return NULL;
+}
 
 static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
 				const char *name, size_t index,
@@ -959,6 +967,11 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 	return NULL;
 }
 
+static inline struct platform_device *acpi_dev_find_plat_dev(struct acpi_device *adev)
+{
+	return NULL;
+}
+
 #define ACPI_DECLARE_PROBE_ENTRY(table, name, table_id, subtable, validate, data, fn) \
 	static const void * __acpi_table_##name[]			\
 		__attribute__((unused))					\
@@ -969,6 +982,17 @@ static inline struct fwnode_handle *acpi_get_next_subnode(struct device *dev,
 		     (void *) data }
 
 #define acpi_probe_device_table(t)	({ int __r = 0; __r;})
+#endif
+
+#ifdef CONFIG_ACPI
+int acpi_match_device_ids(struct acpi_device *device,
+			  const struct acpi_device_id *ids);
+#else
+static inline int acpi_match_device_ids(struct acpi_device *device,
+					const struct acpi_device_id *ids)
+{
+	return -ENOENT;
+}
 #endif
 
 #endif	/*_LINUX_ACPI_H*/
