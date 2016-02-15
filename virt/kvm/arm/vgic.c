@@ -2510,6 +2510,7 @@ static int kvm_vgic_acpi_probe(void)
 		ret = vgic_v2_acpi_probe(vgic_acpi, &vgic_ops, &vgic);
 		break;
 	case ACPI_MADT_GIC_VERSION_V3:
+	case ACPI_MADT_GIC_VERSION_V4:
 		ret = vgic_v3_acpi_probe(vgic_acpi, &vgic_ops, &vgic);
 		break;
 	default:

@@ -338,6 +338,9 @@ int vgic_v3_acpi_probe(struct acpi_madt_generic_interrupt *vgic_acpi,
 	vgic->type = VGIC_V3;
 	vgic->max_gic_vcpus = KVM_MAX_VCPUS;
 
+	kvm_info("MADT GIC@%llx IRQ%d\n", vgic_acpi->gich_base_address,
+		 vgic->maint_irq);
+
 	*ops = &vgic_v3_ops;
 	*params = vgic;
 out:
