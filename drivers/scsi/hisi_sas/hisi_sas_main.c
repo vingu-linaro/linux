@@ -1166,6 +1166,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	struct Scsi_Host *shost;
 	struct hisi_hba *hisi_hba;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = pdev->dev.of_node;
 
 	shost = scsi_host_alloc(&hisi_sas_sht, sizeof(*hisi_hba));
 	if (!shost)
@@ -1179,20 +1180,28 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	init_timer(&hisi_hba->timer);
 
-	device_property_read_u8_array(dev, "sas-addr", hisi_hba->sas_addr,
-				      SAS_ADDR_SIZE);
-
-	if (device_property_read_u32(dev, "ctrl-reset-reg",
-				     &hisi_hba->ctrl_reset_reg))
+	if (device_property_read_u8_array(dev, "sas-addr", hisi_hba->sas_addr,
+					  SAS_ADDR_SIZE))
 		goto err_out;
 
-	if (device_property_read_u32(dev, "ctrl-reset-sts-reg",
-				     &hisi_hba->ctrl_reset_sts_reg))
-		goto err_out;
+	if (np) {
+		hisi_hba->ctrl = syscon_regmap_lookup_by_phandle(np,
+					"hisilicon,sas-syscon");
+		if (IS_ERR(hisi_hba->ctrl))
+			goto err_out;
 
-	if (device_property_read_u32(dev, "ctrl-clock-ena-reg",
-				     &hisi_hba->ctrl_clock_ena_reg))
-		goto err_out;
+		if (device_property_read_u32(dev, "ctrl-reset-reg",
+					     &hisi_hba->ctrl_reset_reg))
+			goto err_out;
+
+		if (device_property_read_u32(dev, "ctrl-reset-sts-reg",
+					     &hisi_hba->ctrl_reset_sts_reg))
+			goto err_out;
+
+		if (device_property_read_u32(dev, "ctrl-clock-ena-reg",
+					     &hisi_hba->ctrl_clock_ena_reg))
+			goto err_out;
+	}
 
 	if (device_property_read_u32(dev, "phy-count", &hisi_hba->n_phy))
 		goto err_out;
@@ -1204,11 +1213,6 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hisi_hba->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(hisi_hba->regs))
-		goto err_out;
-
-	hisi_hba->ctrl = syscon_regmap_lookup_by_dev_property(
-				dev, "hisilicon,sas-syscon");
-	if (IS_ERR(hisi_hba->ctrl))
 		goto err_out;
 
 	if (hisi_sas_alloc(hisi_hba, shost)) {
