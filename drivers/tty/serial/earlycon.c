@@ -13,10 +13,12 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
+#include <linux/acpi.h>
 #include <linux/console.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/of_fdt.h>
 #include <linux/serial_core.h>
 #include <linux/sizes.h>
 #include <linux/mod_devicetable.h>
@@ -184,11 +186,16 @@ static int __init param_setup_earlycon(char *buf)
 	int err;
 
 	/*
-	 * Just 'earlycon' is a valid param for devicetree earlycons;
-	 * don't generate a warning from parse_early_params() in that case
+	 * Just 'earlycon' is a valid param for devicetree or ACPI earlycons;
+	 * ACPI cannot be parsed yet, so return without action if enabled.
+	 * Otherwise, attempt initialization using DT.
 	 */
-	if (!buf || !buf[0])
-		return 0;
+	if (!buf || !buf[0]) {
+		if (!acpi_disabled)
+			return 0;
+		else if (IS_ENABLED(CONFIG_OF_FLATTREE))
+			return early_init_dt_scan_chosen_serial();
+	}
 
 	err = setup_earlycon(buf);
 	if (err == -ENOENT || err == -EALREADY)
@@ -197,8 +204,7 @@ static int __init param_setup_earlycon(char *buf)
 }
 early_param("earlycon", param_setup_earlycon);
 
-int __init of_setup_earlycon(unsigned long addr,
-			     int (*setup)(struct earlycon_device *, const char *))
+int __init setup_earlycon_driver(unsigned long addr, earlycon_initfunc_t setup)
 {
 	int err;
 	struct uart_port *port = &early_console_dev.port;

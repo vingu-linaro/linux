@@ -339,14 +339,15 @@ struct earlycon_device {
 	unsigned int baud;
 };
 
+typedef int (*earlycon_initfunc_t)(struct earlycon_device *, const char *);
+
 struct earlycon_id {
-	char	name[16];
-	int	(*setup)(struct earlycon_device *, const char *options);
+	char			name[16];
+	earlycon_initfunc_t	setup;
 } __aligned(32);
 
 extern int setup_earlycon(char *buf);
-extern int of_setup_earlycon(unsigned long addr,
-			     int (*setup)(struct earlycon_device *, const char *));
+extern int setup_earlycon_driver(unsigned long addr, earlycon_initfunc_t setup);
 
 #define EARLYCON_DECLARE(_name, func)					\
 	static const struct earlycon_id __earlycon_##_name		\

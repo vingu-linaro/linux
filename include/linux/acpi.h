@@ -995,4 +995,17 @@ static inline int acpi_match_device_ids(struct acpi_device *device,
 }
 #endif
 
+#if defined(CONFIG_ACPI)
+# if defined(CONFIG_SERIAL_EARLYCON)
+int __init acpi_early_console_probe(void);
+# endif
+bool acpi_console_check(struct acpi_device *adev, char *name, int index);
+#else
+static inline bool acpi_console_check(struct acpi_device *adev, char *name,
+				      int index)
+{
+	return FALSE;
+}
+#endif
+
 #endif	/*_LINUX_ACPI_H*/

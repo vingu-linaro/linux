@@ -44,6 +44,19 @@ EXPORT_SYMBOL(acpi_pci_disabled);
 static bool param_acpi_off __initdata;
 static bool param_acpi_force __initdata;
 
+static int __init dt_scan_depth1_nodes(unsigned long node,
+				       const char *uname, int depth,
+				       void *data)
+{
+	/*
+	 * Return 1 as soon as we encounter a node at depth 1 that is
+	 * not the /chosen node.
+	 */
+	if (depth == 1 && (strcmp(uname, "chosen") != 0))
+		return 1;
+	return 0;
+}
+
 static int __init parse_acpi(char *arg)
 {
 	if (!arg)
@@ -57,22 +70,25 @@ static int __init parse_acpi(char *arg)
 	else
 		return -EINVAL;	/* Core will print when we return error */
 
+	/*
+	 * Enable ACPI instead of device tree unless
+	 * - ACPI has been disabled explicitly (acpi=off), or
+	 * - the device tree is not empty (it has more than just a /chosen node)
+	 *   and ACPI has not been force enabled (acpi=force)
+	 */
+	if (param_acpi_off ||
+	    (!param_acpi_force && of_scan_flat_dt(dt_scan_depth1_nodes, NULL)))
+		return 0;
+
+	/*
+	 * ACPI is disabled at this point. Enable it in order to parse
+	 * the ACPI tables and carry out sanity checks
+	 */
+	enable_acpi();
+
 	return 0;
 }
 early_param("acpi", parse_acpi);
-
-static int __init dt_scan_depth1_nodes(unsigned long node,
-				       const char *uname, int depth,
-				       void *data)
-{
-	/*
-	 * Return 1 as soon as we encounter a node at depth 1 that is
-	 * not the /chosen node.
-	 */
-	if (depth == 1 && (strcmp(uname, "chosen") != 0))
-		return 1;
-	return 0;
-}
 
 /*
  * __acpi_map_table() will be called before page_init(), so early_ioremap()
@@ -187,12 +203,8 @@ void __init acpi_boot_table_init(void)
 	 */
 	if (param_acpi_off)
 		return;
-
-	/*
-	 * ACPI is disabled at this point. Enable it in order to parse
-	 * the ACPI tables and carry out sanity checks
-	 */
-	enable_acpi();
+	if (acpi_disabled)
+		return;
 
 	/*
 	 * If ACPI tables are initialized and FADT sanity checks passed,
@@ -206,6 +218,8 @@ void __init acpi_boot_table_init(void)
 		if (!param_acpi_force)
 			disable_acpi();
 	}
+
+	acpi_early_console_probe();
 }
 
 #ifdef CONFIG_ACPI_APEI

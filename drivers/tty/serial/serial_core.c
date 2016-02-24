@@ -34,6 +34,7 @@
 #include <linux/serial_core.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
+#include <linux/acpi.h>
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
@@ -2699,9 +2700,18 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 		spin_lock_init(&uport->lock);
 		lockdep_set_class(&uport->lock, &port_lock_key);
 	}
-	if (uport->cons && uport->dev)
-		of_console_check(uport->dev->of_node, uport->cons->name, uport->line);
 
+	/*
+	 * Support both open FW and ACPI access to console definitions.
+	 * Both of_console_check() and acpi_console_check() will call
+	 * add_preferred_console() if a console definition is found.
+	 */
+	if (uport->cons && uport->dev) {
+		if (!acpi_console_check(ACPI_COMPANION(uport->dev),
+					uport->cons->name, uport->line))
+			of_console_check(uport->dev->of_node,
+					 uport->cons->name, uport->line);
+	}
 	uart_configure_port(drv, state, uport);
 
 	num_groups = 2;
