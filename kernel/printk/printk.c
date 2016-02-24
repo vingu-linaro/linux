@@ -2431,25 +2431,6 @@ static int __init keep_bootcon_setup(char *str)
 
 early_param("keep_bootcon", keep_bootcon_setup);
 
-static DEFINE_MUTEX(acpi_consoles_delayed_mutex);
-static struct console *acpi_consoles_delayed;
-
-void acpi_register_consoles_try_again(void)
-{
-	mutex_lock(&acpi_consoles_delayed_mutex);
-	while (acpi_consoles_delayed) {
-
-		struct console *c = acpi_consoles_delayed;
-
-		acpi_consoles_delayed = acpi_consoles_delayed->next;
-
-		mutex_unlock(&acpi_consoles_delayed_mutex);
-		register_console(c);
-		mutex_lock(&acpi_consoles_delayed_mutex);
-	}
-	mutex_unlock(&acpi_consoles_delayed_mutex);
-}
-
 /*
  * The console driver calls this routine during kernel initialization
  * to register the console printing procedure with printk() and to
@@ -2557,30 +2538,8 @@ void register_console(struct console *newcon)
 		break;
 	}
 
-	if (!(newcon->flags & CON_ENABLED)) {
-		char *opts;
-		int err;
-
-		if (newcon->index < 0)
-			newcon->index = 0;
-
-		err = console_acpi_match(newcon, &opts);
-
-		if (err == -EAGAIN) {
-			mutex_lock(&acpi_consoles_delayed_mutex);
-			newcon->next = acpi_consoles_delayed;
-			acpi_consoles_delayed = newcon;
-			mutex_unlock(&acpi_consoles_delayed_mutex);
-			return;
-		} else if (err < 0) {
-			return;
-		} else {
-			if (newcon->setup && newcon->setup(newcon, opts) != 0)
-				return;
-			newcon->flags |= CON_ENABLED | CON_CONSDEV;
-			preferred_console = true;
-		}
-	}
+	if (!(newcon->flags & CON_ENABLED))
+		return;
 
 	/*
 	 * If we have a bootconsole, and are switching to a real console,
@@ -2653,41 +2612,34 @@ void register_console(struct console *newcon)
 }
 EXPORT_SYMBOL(register_console);
 
-static int delete_from_console_list(struct console **list, struct console *c)
-{
-	while (*list) {
-		struct console *cur = *list;
-
-		if (cur == c) {
-			*list = cur->next;
-			return 0;
-		}
-		list = &cur->next;
-	}
-	return 1;
-}
-
 int unregister_console(struct console *console)
 {
+        struct console *a, *b;
 	int res;
 
 	pr_info("%sconsole [%s%d] disabled\n",
 		(console->flags & CON_BOOT) ? "boot" : "" ,
 		console->name, console->index);
 
-	mutex_lock(&acpi_consoles_delayed_mutex);
-	res = delete_from_console_list(&acpi_consoles_delayed, console);
-	mutex_unlock(&acpi_consoles_delayed_mutex);
-	if (res == 0)
-		return res;
-
 	res = _braille_unregister_console(console);
 	if (res)
 		return res;
 
+	res = 1;
 	console_lock();
-
-	res = delete_from_console_list(&console_drivers, console);
+	if (console_drivers == console) {
+		console_drivers=console->next;
+		res = 0;
+	} else if (console_drivers) {
+		for (a=console_drivers->next, b=console_drivers ;
+		     a; b=a, a=b->next) {
+			if (a == console) {
+				b->next = a->next;
+				res = 0;
+				break;
+			}
+		}
+	}
 
 	if (!res && (console->flags & CON_EXTENDED))
 		nr_ext_console_drivers--;

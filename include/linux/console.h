@@ -14,7 +14,6 @@
 #ifndef _LINUX_CONSOLE_H_
 #define _LINUX_CONSOLE_H_ 1
 
-#include <linux/errno.h>
 #include <linux/types.h>
 
 struct vc_data;
@@ -118,7 +117,6 @@ static inline int con_debug_leave(void)
 #define CON_BRL		(32) /* Used for a braille device */
 #define CON_EXTENDED	(64) /* Use the extended output format a la /dev/kmsg */
 
-struct acpi_table_spcr;
 struct console {
 	char	name[16];
 	void	(*write)(struct console *, const char *, unsigned);
@@ -127,23 +125,12 @@ struct console {
 	void	(*unblank)(void);
 	int	(*setup)(struct console *, char *);
 	int	(*match)(struct console *, char *name, int idx, char *options);
-	int	(*acpi_match)(struct console *, struct acpi_table_spcr *);
 	short	flags;
 	short	index;
 	int	cflag;
 	void	*data;
 	struct	 console *next;
 };
-
-#ifdef CONFIG_ACPI_SPCR_TABLE
-int console_acpi_match(struct console *c, char **options);
-#else
-static inline int console_acpi_match(struct console *c, char **options)
-{
-	return -ENODEV;
-}
-#endif
-void acpi_register_consoles_try_again(void);
 
 /*
  * for_each_console() allows you to iterate on each console
