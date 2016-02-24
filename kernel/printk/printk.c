@@ -143,6 +143,7 @@ static struct console *exclusive_console;
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int selected_console = -1;
+static int preferred_console = -1;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
@@ -2474,7 +2475,6 @@ void register_console(struct console *newcon)
 	unsigned long flags;
 	struct console *bcon = NULL;
 	struct console_cmdline *c;
-	static bool preferred_console;
 
 	if (console_drivers)
 		for_each_console(bcon)
@@ -2501,15 +2501,15 @@ void register_console(struct console *newcon)
 	if (console_drivers && console_drivers->flags & CON_BOOT)
 		bcon = console_drivers;
 
-	if (!preferred_console || bcon || !console_drivers)
-		preferred_console = selected_console >= 0;
+	if (preferred_console < 0 || bcon || !console_drivers)
+		preferred_console = selected_console;
 
 	/*
 	 *	See if we want to use this console driver. If we
 	 *	didn't select a console we take the first one
 	 *	that registers here.
 	 */
-	if (!preferred_console) {
+	if (preferred_console < 0) {
 		if (newcon->index < 0)
 			newcon->index = 0;
 		if (newcon->setup == NULL ||
@@ -2517,7 +2517,7 @@ void register_console(struct console *newcon)
 			newcon->flags |= CON_ENABLED;
 			if (newcon->device) {
 				newcon->flags |= CON_CONSDEV;
-				preferred_console = true;
+				preferred_console = 0;
 			}
 		}
 	}
@@ -2552,7 +2552,7 @@ void register_console(struct console *newcon)
 		newcon->flags |= CON_ENABLED;
 		if (i == selected_console) {
 			newcon->flags |= CON_CONSDEV;
-			preferred_console = true;
+			preferred_console = selected_console;
 		}
 		break;
 	}
