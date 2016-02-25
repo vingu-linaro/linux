@@ -203,8 +203,8 @@ void __init acpi_boot_table_init(void)
 	 */
 	if (param_acpi_off)
 		return;
-	if (acpi_disabled)
-		return;
+
+	enable_acpi();
 
 	/*
 	 * If ACPI tables are initialized and FADT sanity checks passed,
