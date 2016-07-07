@@ -15,3 +15,10 @@ config SMAF_TEST_SECURE
 	depends on SMAF
 	help
 	  Choose this option to enable secure module for test purpose
+
+config SMAF_OPTEE_ALLOCATOR
+	tristate "SMAF OPTEE Allocator"
+	depends on SMAF && TEE && OPTEE
+	help
+	  Choose this option to enable Secure allocation from OP-TEE within SMAF
+
