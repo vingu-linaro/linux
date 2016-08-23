@@ -500,7 +500,7 @@ err:
 	if (pool)
 		tee_shm_pool_free(pool);
 	if (ioremaped_shm)
-		iounmap(optee->ioremaped_shm);
+		iounmap(ioremaped_shm);
 	return rc;
 }
 
