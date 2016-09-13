@@ -42,10 +42,6 @@
 #define TEE_IOC_MAGIC	0xa4
 #define TEE_IOC_BASE	0
 
-/* Flags relating to shared memory */
-#define TEE_IOCTL_SHM_MAPPED	0x1	/* memory mapped in normal world */
-#define TEE_IOCTL_SHM_DMA_BUF	0x2	/* dma-buf handle on shared memory */
-
 #define TEE_MAX_ARG_SIZE	1024
 
 #define TEE_GEN_CAP_GP		(1 << 0)/* GlobalPlatform compliant TEE */
@@ -219,7 +215,7 @@ struct tee_ioctl_param {
  * struct tee_ioctl_open_session_arg - Open session argument
  * @uuid:	[in] UUID of the Trusted Application
  * @clnt_uuid:	[in] UUID of client
- * @clnt_login:	[in] Login class of client, TEE_LOGIN_* above
+ * @clnt_login:	[in] Login class of client, TEE_IOCTL_LOGIN_* above
  * @cancel_id:	[in] Cancellation id, a unique value to identify this request
  * @session:	[out] Session id
  * @ret:	[out] return value
