@@ -22,3 +22,30 @@ config SMAF_OPTEE_ALLOCATOR
 	help
 	  Choose this option to enable Secure allocation from OP-TEE within SMAF
 
+config SMAF_OPTEE
+	tristate "SMAF OPTEE interface"
+	depends on SMAF && TEE && OPTEE
+	help
+	  Choose this option to enable secure module from OP-TEE within SMAF
+
+config SMAF_RUNTIME_MEMORY
+	boolean "TEE can be invoked to reconfigure memory protection means"
+	depends on SMAF && TEE
+	default y
+	help
+	  You should enable this if the system support memory areas that are
+	  use as pools for both secure and non-secure memory. SMAF will invoke
+	  TEE to setup protection means of memory areas (create region) or
+	  release protection means (destroy region) as secure buffers a
+	  requested and released.
+
+config SMAF_RUNTIME_DEVICE
+	boolean "TEE can be invoked to modify a device operating secure state"
+	depends on SMAF && TEE
+	default y
+	help
+	  You should enable this if the system support devices that have a
+	  reconfigurable operating secure state. SMAF will invoke TEE to
+	  reconfigure target device access permissions (at some HW secure
+	  level) accoring to system needs.
+

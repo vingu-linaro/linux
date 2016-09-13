@@ -715,7 +715,7 @@ static long smaf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (data.version != 0)
 			return -EINVAL;
 
-		if (data.fd == -1)
+		if (data.fd < 0)
 			return -EINVAL;
 
 		dmabuf = dma_buf_get(data.fd);
@@ -789,6 +789,11 @@ static long smaf_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	}
 
 	return 0;
+}
+
+struct device *get_smaf_dev(void)
+{
+	return smaf_dev.misc_dev.this_device;
 }
 
 static int __init smaf_init(void)
