@@ -26,6 +26,7 @@
 #include <linux/smaf-allocator.h>
 #include <linux/smaf-secure.h>
 #include <linux/uaccess.h>
+#include <linux/version.h>
 
 struct smaf_handle {
 	struct dma_buf *dmabuf;
@@ -427,6 +428,9 @@ static void smaf_dma_buf_release(struct dma_buf *dmabuf)
 }
 
 static int smaf_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+					 size_t start, size_t len,
+#endif
 					 enum dma_data_direction dir)
 {
 	struct smaf_handle *handle = dmabuf->priv;
@@ -443,11 +447,32 @@ static int smaf_dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
 	if (!ret)
 		return -EINVAL;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+	return dma_buf_begin_cpu_access(handle->db_alloc, start, len, dir);
+#else
 	return dma_buf_begin_cpu_access(handle->db_alloc, dir);
+#endif
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 6, 0)
+static void smaf_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+					size_t start, size_t len,
+					enum dma_data_direction dir)
+{
+	struct smaf_handle *handle = dmabuf->priv;
+
+	if (!handle->db_alloc)
+		return;
+
+	dma_buf_end_cpu_access(handle->db_alloc, start, len, dir);
+
+	mutex_lock(&smaf_dev.lock);
+	smaf_revoke_access(handle, get_cpu_device(0), 0, handle->length, dir);
+	mutex_unlock(&smaf_dev.lock);
+}
+#else
 static int smaf_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
-				       enum dma_data_direction dir)
+					enum dma_data_direction dir)
 {
 	struct smaf_handle *handle = dmabuf->priv;
 	int ret;
@@ -463,6 +488,7 @@ static int smaf_dma_buf_end_cpu_access(struct dma_buf *dmabuf,
 
 	return ret;
 }
+#endif
 
 static void *smaf_dma_buf_kmap_atomic(struct dma_buf *dmabuf,
 				      unsigned long offset)
