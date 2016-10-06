@@ -3,3 +3,9 @@ config SMAF
 	depends on DMA_SHARED_BUFFER
 	help
 	  Choose this option to enable Secure Memory Allocation Framework
+
+config SMAF_CMA
+	tristate "SMAF CMA allocator"
+	depends on SMAF
+	help
+	  Choose this option to enable CMA allocation within SMAF
