@@ -32,7 +32,7 @@ struct smaf_create_data {
 	__u64 length;
 	__u32 flags;
 	__u32 reserved1;
-	__s32 fd;
+	__s64 fd;
 	__u32 reserved2;
 	__u8 name[MAX_NAME_LENGTH];
 	__u8 reserved3[32];
@@ -46,7 +46,7 @@ struct smaf_create_data {
  */
 struct smaf_secure_flag {
 	__u64 version;
-	__s32 fd;
+	__s64 fd;
 	__u32 reserved1;
 	__u32 secure;
 	__u8 reserved2[44];
