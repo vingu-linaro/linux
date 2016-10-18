@@ -400,4 +400,28 @@ struct tee_iocl_supp_send_arg {
  * munmap(): unmaps previously shared memory
  */
 
+/**
+ * struct tee_ioctl_shm_alloc_data - Shared memory allocate argument
+ * @fd:		[in] file descriptor identifying the shared memory
+ * @size:	[out] Size of shared memory to allocate
+ * @flags:	[out] Flags to/from allocation.
+ * @id:		[out] Identifier of the shared memory
+ *
+ * The flags field should currently be zero as input. Updated by the call
+ * with actual flags as defined by TEE_IOCTL_SHM_* above.
+ * This structure is used as argument for TEE_IOC_SHM_ALLOC below.
+ */
+struct tee_ioctl_shm_register_fd_data {
+	__s64 fd;
+	__u64 size;
+	__u32 flags;
+	__s32 id;
+} __aligned(8);
+
+/**
+ * TEE_IOC_SHM_REGISTER_FD - registered shared memory from a file descriptor
+ */
+#define TEE_IOC_SHM_REGISTER_FD	_IOWR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
+				     struct tee_ioctl_shm_register_fd_data)
+
 #endif /*__TEE_H*/
