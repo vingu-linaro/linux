@@ -116,6 +116,35 @@ struct tee_ioctl_shm_alloc_data {
 				     struct tee_ioctl_shm_alloc_data)
 
 /**
+ * struct tee_ioctl_shm_register_fd_data - Shared memory registering argument
+ * @fd:		[in] file descriptor identifying the shared memory
+ * @size:	[out] Size of shared memory to allocate
+ * @flags:	[in] Flags to/from allocation.
+ * @id:		[out] Identifier of the shared memory
+ *
+ * The flags field should currently be zero as input. Updated by the call
+ * with actual flags as defined by TEE_IOCTL_SHM_* above.
+ * This structure is used as argument for TEE_IOC_SHM_ALLOC below.
+ */
+struct tee_ioctl_shm_register_fd_data {
+	__s64 fd;
+	__u64 size;
+	__u32 flags;
+	__s32 id;
+} __aligned(8);
+
+/**
+ * TEE_IOC_SHM_REGISTER_FD - register a shared memory from a file descriptor
+ *
+ * Returns a file descriptor on success or < 0 on failure
+ *
+ * The returned file descriptor refers to the shared memory object in kernel
+ * land. The shared memory is freed when the descriptor is closed.
+ */
+#define TEE_IOC_SHM_REGISTER_FD	_IOWR(TEE_IOC_MAGIC, TEE_IOC_BASE + 2, \
+				     struct tee_ioctl_shm_register_fd_data)
+
+/**
  * struct tee_ioctl_buf_data - Variable sized buffer
  * @buf_ptr:	[in] A __user pointer to a buffer
  * @buf_len:	[in] Length of the buffer above
@@ -256,7 +285,7 @@ struct tee_ioctl_open_session_arg {
  * tee_ioctl_open_session_arg followed by any array of struct
  * tee_ioctl_param
  */
-#define TEE_IOC_OPEN_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 2, \
+#define TEE_IOC_OPEN_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 3, \
 				     struct tee_ioctl_buf_data)
 
 /**
@@ -294,7 +323,7 @@ struct tee_ioctl_invoke_arg {
  * Takes a struct tee_ioctl_buf_data which contains a struct
  * tee_invoke_func_arg followed by any array of struct tee_param
  */
-#define TEE_IOC_INVOKE		_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 3, \
+#define TEE_IOC_INVOKE		_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 4, \
 				     struct tee_ioctl_buf_data)
 
 /**
@@ -310,7 +339,7 @@ struct tee_ioctl_cancel_arg {
 /**
  * TEE_IOC_CANCEL - Cancels an open session or invoke
  */
-#define TEE_IOC_CANCEL		_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 4, \
+#define TEE_IOC_CANCEL		_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 5, \
 				     struct tee_ioctl_cancel_arg)
 
 /**
@@ -324,7 +353,7 @@ struct tee_ioctl_close_session_arg {
 /**
  * TEE_IOC_CLOSE_SESSION - Closes a session
  */
-#define TEE_IOC_CLOSE_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 5, \
+#define TEE_IOC_CLOSE_SESSION	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 6, \
 				     struct tee_ioctl_close_session_arg)
 
 /**
@@ -357,7 +386,7 @@ struct tee_iocl_supp_recv_arg {
  * Takes a struct tee_ioctl_buf_data which contains a struct
  * tee_iocl_supp_recv_arg followed by any array of struct tee_param
  */
-#define TEE_IOC_SUPPL_RECV	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 6, \
+#define TEE_IOC_SUPPL_RECV	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 7, \
 				     struct tee_ioctl_buf_data)
 
 /**
@@ -385,7 +414,7 @@ struct tee_iocl_supp_send_arg {
  * Takes a struct tee_ioctl_buf_data which contains a struct
  * tee_iocl_supp_send_arg followed by any array of struct tee_param
  */
-#define TEE_IOC_SUPPL_SEND	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 7, \
+#define TEE_IOC_SUPPL_SEND	_IOR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
 				     struct tee_ioctl_buf_data)
 
 /*
@@ -399,29 +428,5 @@ struct tee_iocl_supp_send_arg {
  *	   tee_ioctl_shm_alloc_data
  * munmap(): unmaps previously shared memory
  */
-
-/**
- * struct tee_ioctl_shm_alloc_data - Shared memory allocate argument
- * @fd:		[in] file descriptor identifying the shared memory
- * @size:	[out] Size of shared memory to allocate
- * @flags:	[out] Flags to/from allocation.
- * @id:		[out] Identifier of the shared memory
- *
- * The flags field should currently be zero as input. Updated by the call
- * with actual flags as defined by TEE_IOCTL_SHM_* above.
- * This structure is used as argument for TEE_IOC_SHM_ALLOC below.
- */
-struct tee_ioctl_shm_register_fd_data {
-	__s64 fd;
-	__u64 size;
-	__u32 flags;
-	__s32 id;
-} __aligned(8);
-
-/**
- * TEE_IOC_SHM_REGISTER_FD - registered shared memory from a file descriptor
- */
-#define TEE_IOC_SHM_REGISTER_FD	_IOWR(TEE_IOC_MAGIC, TEE_IOC_BASE + 8, \
-				     struct tee_ioctl_shm_register_fd_data)
 
 #endif /*__TEE_H*/
