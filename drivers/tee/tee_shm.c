@@ -331,12 +331,8 @@ void tee_shm_free(struct tee_shm *shm)
 	 *
 	 * In the case of driver private memory we call tee_shm_release
 	 * directly instead as it doesn't have a reference counter.
-	 *
-	 * In case the buffer was registered (not mappable), we call
-	 * tee_shm_release directly as the initial dmabuf reference must
-	 * be released before actual shm object to released.
 	 */
-	if ((shm->flags & TEE_SHM_MAPPED) && (shm->flags & TEE_SHM_DMA_BUF))
+	if (shm->flags & TEE_SHM_DMA_BUF)
 		dma_buf_put(shm->dmabuf);
 	else
 		tee_shm_release(shm);
