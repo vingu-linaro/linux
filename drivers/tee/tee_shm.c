@@ -38,7 +38,15 @@ static void tee_shm_release(struct tee_shm *shm)
 		list_del(&shm->link);
 	mutex_unlock(&teedev->mutex);
 
-	if (shm->flags & TEE_SHM_MAPPED) {
+	if (shm->flags & TEE_SHM_EXT_DMA_BUF) {
+		struct tee_shm_dmabuf_ref *ref;
+
+		ref = container_of(shm, struct tee_shm_dmabuf_ref, shm);
+		dma_buf_unmap_attachment(ref->attach, ref->sgt,
+					 DMA_BIDIRECTIONAL);
+		dma_buf_detach(shm->dmabuf, ref->attach);
+		dma_buf_put(ref->dmabuf);
+	} else {
 		struct tee_shm_pool_mgr *poolm;
 
 		if (shm->flags & TEE_SHM_DMA_BUF)
@@ -47,14 +55,6 @@ static void tee_shm_release(struct tee_shm *shm)
 			poolm = &teedev->pool->private_mgr;
 
 		poolm->ops->free(poolm, shm);
-	} else {
-		struct tee_shm_dmabuf_ref *ref;
-
-		ref = container_of(shm, struct tee_shm_dmabuf_ref, shm);
-		dma_buf_unmap_attachment(ref->attach, ref->sgt,
-					 DMA_BIDIRECTIONAL);
-		dma_buf_detach(shm->dmabuf, ref->attach);
-		dma_buf_put(ref->dmabuf);
 	}
 
 	kfree(shm);
@@ -253,7 +253,7 @@ struct tee_shm *tee_shm_register_fd(struct tee_context *ctx, int fd)
 
 	ref->shm.paddr = sg_dma_address(ref->sgt->sgl);
 	ref->shm.size = sg_dma_len(ref->sgt->sgl);
-	ref->shm.flags = TEE_SHM_DMA_BUF;
+	ref->shm.flags = TEE_SHM_DMA_BUF | TEE_SHM_EXT_DMA_BUF;
 
 	mutex_lock(&ref->shm.teedev->mutex);
 	ref->shm.id = idr_alloc(&ref->shm.teedev->idr, &ref->shm,

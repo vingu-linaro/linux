@@ -25,8 +25,9 @@
  * specific TEE driver.
  */
 
-#define TEE_SHM_MAPPED		0x1	/* Memory mapped by the kernel */
-#define TEE_SHM_DMA_BUF		0x2	/* Memory with dma-buf handle */
+#define TEE_SHM_MAPPED		BIT(0)	/* Memory mapped by the kernel */
+#define TEE_SHM_DMA_BUF		BIT(1)	/* Memory with dma-buf handle */
+#define TEE_SHM_EXT_DMA_BUF	BIT(2)	/* Memory with dma-buf handle */
 
 struct tee_device;
 struct tee_shm;
