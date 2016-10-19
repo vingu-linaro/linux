@@ -21,10 +21,11 @@
 #include "tee_private.h"
 
 /* extra references appended to shm object for registered shared memory */
-struct dmabuf_ref {
-	struct dma_buf *dmabuf;
-	struct dma_buf_attachment *attach;
-	struct sg_table *sgt;
+struct tee_shm_dmabuf_ref {
+     struct tee_shm shm;
+     struct dma_buf *dmabuf;
+     struct dma_buf_attachment *attach;
+     struct sg_table *sgt;
 };
 
 static void tee_shm_release(struct tee_shm *shm)
@@ -47,8 +48,9 @@ static void tee_shm_release(struct tee_shm *shm)
 
 		poolm->ops->free(poolm, shm);
 	} else {
-		struct dmabuf_ref *ref = (struct dmabuf_ref *)(shm + 1);
+		struct tee_shm_dmabuf_ref *ref;
 
+		ref = container_of(shm, struct tee_shm_dmabuf_ref, shm);
 		dma_buf_unmap_attachment(ref->attach, ref->sgt,
 					 DMA_BIDIRECTIONAL);
 		dma_buf_detach(shm->dmabuf, ref->attach);
@@ -209,24 +211,22 @@ EXPORT_SYMBOL_GPL(tee_shm_alloc);
 
 struct tee_shm *tee_shm_register_fd(struct tee_context *ctx, int fd)
 {
-	struct dmabuf_ref *ref = NULL;
-	struct tee_shm *shm;
+	struct tee_shm_dmabuf_ref *ref = NULL;
 	void *rc;
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
 	if (!tee_device_get(ctx->teedev))
 		return ERR_PTR(-EINVAL);
 
-	shm = kzalloc(sizeof(*shm) + sizeof(*ref), GFP_KERNEL);
-	if (!shm) {
+	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+	if (!ref) {
 		rc = ERR_PTR(-ENOMEM);
 		goto err;
 	}
 
-	shm->ctx = ctx;
-	shm->teedev = ctx->teedev;
-	shm->id = -1;
-	ref = (struct dmabuf_ref *)(shm + 1);
+	ref->shm.ctx = ctx;
+	ref->shm.teedev = ctx->teedev;
+	ref->shm.id = -1;
 
 	ref->dmabuf = dma_buf_get(fd);
 	if (!ref->dmabuf) {
@@ -234,7 +234,7 @@ struct tee_shm *tee_shm_register_fd(struct tee_context *ctx, int fd)
 		goto err;
 	}
 
-	ref->attach = dma_buf_attach(ref->dmabuf, &shm->teedev->dev);
+	ref->attach = dma_buf_attach(ref->dmabuf, &ref->shm.teedev->dev);
 	if (IS_ERR_OR_NULL(ref->attach)) {
 		rc = ERR_PTR(-EINVAL);
 		goto err;
@@ -251,40 +251,41 @@ struct tee_shm *tee_shm_register_fd(struct tee_context *ctx, int fd)
 		goto err;
 	}
 
-	shm->paddr = sg_dma_address(ref->sgt->sgl);
-	shm->size = sg_dma_len(ref->sgt->sgl);
-	shm->flags = TEE_SHM_DMA_BUF;
+	ref->shm.paddr = sg_dma_address(ref->sgt->sgl);
+	ref->shm.size = sg_dma_len(ref->sgt->sgl);
+	ref->shm.flags = TEE_SHM_DMA_BUF;
 
-	mutex_lock(&shm->teedev->mutex);
-	shm->id = idr_alloc(&shm->teedev->idr, shm, 1, 0, GFP_KERNEL);
-	mutex_unlock(&shm->teedev->mutex);
-	if (shm->id < 0) {
-		rc = ERR_PTR(shm->id);
+	mutex_lock(&ref->shm.teedev->mutex);
+	ref->shm.id = idr_alloc(&ref->shm.teedev->idr, &ref->shm,
+				1, 0, GFP_KERNEL);
+	mutex_unlock(&ref->shm.teedev->mutex);
+	if (ref->shm.id < 0) {
+		rc = ERR_PTR(ref->shm.id);
 		goto err;
 	}
 
-	/* export a dmabuf to later get userland ref */
+	/* export a dmabuf to later get a userland ref */
 	exp_info.ops = &tee_shm_dma_buf_ops;
-	exp_info.size = shm->size;
+	exp_info.size = ref->shm.size;
 	exp_info.flags = O_RDWR;
-	exp_info.priv = shm;
+	exp_info.priv = &ref->shm;
 
-	shm->dmabuf = dma_buf_export(&exp_info);
-	if (IS_ERR(shm->dmabuf)) {
+	ref->shm.dmabuf = dma_buf_export(&exp_info);
+	if (IS_ERR(ref->shm.dmabuf)) {
 		rc = ERR_PTR(-EINVAL);
 		goto err;
 	}
 
-	mutex_lock(&shm->teedev->mutex);
-	list_add_tail(&shm->link, &ctx->list_shm);
-	mutex_unlock(&shm->teedev->mutex);
+	mutex_lock(&ref->shm.teedev->mutex);
+	list_add_tail(&ref->shm.link, &ctx->list_shm);
+	mutex_unlock(&ref->shm.teedev->mutex);
 
-	return shm;
+	return &ref->shm;
 
 err:
-	if (shm && shm->id >= 0) {
+	if (ref && ref->shm.id >= 0) {
 		mutex_lock(&ctx->teedev->mutex);
-		idr_remove(&ctx->teedev->idr, shm->id);
+		idr_remove(&ctx->teedev->idr, ref->shm.id);
 		mutex_unlock(&ctx->teedev->mutex);
 	}
 	if (ref && ref->sgt)
@@ -294,7 +295,7 @@ err:
 		dma_buf_detach(ref->dmabuf, ref->attach);
 	if (ref->dmabuf)
 		dma_buf_put(ref->dmabuf);
-	kfree(shm);
+	kfree(ref);
 	tee_device_put(ctx->teedev);
 	return rc;
 }
