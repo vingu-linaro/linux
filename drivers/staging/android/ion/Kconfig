@@ -27,6 +27,16 @@ config ION_DUMMY
 	  one doesn't have access to hardware drivers that
 	  use ION.
 
+config ION_SDP
+	bool "Dummy Ion driver for kernel unmap carveout heap"
+	depends on ION
+	help
+	  Provides a dummy ION driver that registers the
+	  /dev/ion device and a carveout heaps default unmapped
+	  to the kernel. This can be used for testing the ION
+	  infrastructure if one doesn't have access to hardware
+	  drivers that use ION.
+
 config ION_TEGRA
 	tristate "Ion for Tegra"
 	depends on ARCH_TEGRA && ION
