@@ -40,11 +40,23 @@ static struct ion_heap **heaps;
 
 static struct ion_platform_heap sdp_heaps[] = {
 		{
+			.id	= ION_HEAP_TYPE_SYSTEM_CONTIG,
+			.type	= ION_HEAP_TYPE_SYSTEM_CONTIG,
+			.name	= "system contig",
+		},
+		{
 			.id	= ION_HEAP_TYPE_CARVEOUT,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
-			.name	= "carveout1",
+			.name	= "carveout",
 			.base	= CFG_SDP_POOL_BASE,
-			.size	= CFG_SDP_POOL_SIZE,
+			.size	= CFG_SDP_POOL_SIZE / 2,
+		},
+		{
+			.id	= ION_HEAP_TYPE_SECURE,
+			.type	= ION_HEAP_TYPE_SECURE,
+			.name	= "secure",
+			.base	= CFG_SDP_POOL_BASE + (CFG_SDP_POOL_SIZE / 2),
+			.size	= CFG_SDP_POOL_SIZE / 2,
 		},
 };
 
