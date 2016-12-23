@@ -503,13 +503,12 @@ static int tee_ioctl_supp_recv(struct tee_context *ctx,
 
 	if (sizeof(*uarg) + TEE_IOCTL_PARAM_SIZE(num_params) != buf.buf_len)
 		return -EINVAL;
-	uparams = (struct tee_ioctl_param __user *)(uarg + 1);
 
 	params = kcalloc(num_params, sizeof(struct tee_param), GFP_KERNEL);
 	if (!params)
 		return -ENOMEM;
 
-	rc = params_from_user(ctx, params, num_params, uparams);
+	rc = params_from_user(ctx, params, num_params, uarg->params);
 	if (rc)
 		goto out;
 
