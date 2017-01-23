@@ -12,4 +12,4 @@ obj-$(CONFIG_ION_TEGRA) += tegra/
 obj-$(CONFIG_ION_HISI) += hisilicon/
 obj-$(CONFIG_ION_OF) += ion_of.o
 
-obj-$(CONFIG_ION_SDP) += ion_secure_heap.o
+obj-$(CONFIG_ION_SDP) += ion_sdp_heap.o
