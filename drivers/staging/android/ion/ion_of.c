@@ -44,6 +44,22 @@ static int ion_parse_dt_heap_common(struct device_node *heap_node,
 	heap->name = compatible[i].name;
 	heap->align = compatible[i].align;
 
+	if (heap->type == ION_HEAP_TYPE_UNMAPPED) {
+		uint32_t val;
+
+		if (of_property_read_u32(heap_node, "heap-base", &val) >= 0) {
+			int rc;
+
+			heap->base = val;
+			rc = of_property_read_u32(heap_node, "heap-size", &val);
+			if (rc < 0) {
+				pr_err("heap-base without heap-size");
+				return -EINVAL;
+			}
+			heap->size = val;
+		}
+	}
+
 	/* Some kind of callback function pointer? */
 
 	pr_info("%s: id %d type %d name %s align %lx\n", __func__,
