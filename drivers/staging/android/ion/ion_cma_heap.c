@@ -23,7 +23,6 @@
 #include <linux/scatterlist.h>
 
 #include "ion.h"
-#include "ion_priv.h"
 
 #define ION_CMA_ALLOCATE_FAILED -1
 
