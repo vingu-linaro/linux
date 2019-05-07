@@ -44,7 +44,7 @@ struct ion_unmapped_heap {
 	struct ion_heap heap;
 	struct gen_pool *pool;
 	phys_addr_t base;
-	size_t          size;
+	size_t size;
 };
 
 struct unmapped_buffer_priv {
@@ -158,7 +158,6 @@ static void ion_unmapped_heap_free(struct ion_buffer *buffer)
 {
 	struct ion_heap *heap = buffer->heap;
 
-
 	ion_unmapped_heap_unmap_dma(heap, buffer);
 	ion_unmapped_free(heap, get_buffer_base(buffer->priv_virt),
 			 buffer->size);
@@ -191,12 +190,9 @@ static struct ion_heap_ops unmapped_heap_ops = {
 	.unmap_kernel = ion_heap_unmap_kernel,
 };
 
-struct ion_heap *ion_unmapped_heap_create(struct ion_platform_heap *pheap)
+struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size)
 {
 	struct ion_unmapped_heap *umh;
-
-	if (pheap->type != ION_HEAP_TYPE_UNMAPPED)
-		return NULL;
 
 	umh = kzalloc(sizeof(struct ion_unmapped_heap), GFP_KERNEL);
 	if (!umh)
@@ -207,10 +203,10 @@ struct ion_heap *ion_unmapped_heap_create(struct ion_platform_heap *pheap)
 		kfree(umh);
 		return ERR_PTR(-ENOMEM);
 	}
-	umh->base = pheap->base;
-	umh->size = pheap->size;
+	umh->base = base;
+	umh->size = size;
 
-	gen_pool_add(umh->pool, umh->base, pheap->size, -1);
+	gen_pool_add(umh->pool, umh->base, size, -1);
 	umh->heap.ops = &unmapped_heap_ops;
 	umh->heap.type = ION_HEAP_TYPE_UNMAPPED;
 
@@ -236,13 +232,9 @@ static int ion_add_dummy_unmapped_heaps(void)
 {
         struct ion_heap *heap;
 	const char name[] = DUMMY_UNAMMPED_HEAP_NAME;
-	struct ion_platform_heap pheap = {
-		.type	= ION_HEAP_TYPE_UNMAPPED,
-		.base   = CONFIG_ION_DUMMY_UNMAPPED_BASE,
-		.size   = CONFIG_ION_DUMMY_UNMAPPED_SIZE,
-	};
 
-	heap = ion_unmapped_heap_create(&pheap);
+	heap = ion_unmapped_heap_create(CONFIG_ION_DUMMY_UNMAPPED_BASE,
+					CONFIG_ION_DUMMY_UNMAPPED_SIZE);
 	if (IS_ERR(heap))
 		return PTR_ERR(heap);
 
