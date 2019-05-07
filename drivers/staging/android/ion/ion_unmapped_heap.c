@@ -121,3 +121,34 @@ struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size)
 
 	return &unmapped_heap->heap;
 }
+
+#if defined(CONFIG_ION_DUMMY_UNMAPPED_HEAP) && CONFIG_ION_DUMMY_UNMAPPED_SIZE
+#define DUMMY_UNAMMPED_HEAP_NAME	"unmapped_contiguous"
+
+static int ion_add_dummy_unmapped_heaps(void)
+{
+        struct ion_heap *heap;
+	const char name[] = DUMMY_UNAMMPED_HEAP_NAME;
+	struct ion_platform_heap pheap = {
+		.type	= ION_HEAP_TYPE_UNMAPPED,
+		.base   = CONFIG_ION_DUMMY_UNMAPPED_BASE,
+		.size   = CONFIG_ION_DUMMY_UNMAPPED_SIZE,
+	};
+
+	heap = ion_unmapped_heap_create(CONFIG_ION_DUMMY_UNMAPPED_BASE,
+					CONFIG_ION_DUMMY_UNMAPPED_SIZE);
+	if (IS_ERR(heap))
+		return PTR_ERR(heap);
+
+	heap->name = kzalloc(sizeof(name), GFP_KERNEL);
+	if (IS_ERR(heap->name)) {
+		kfree(heap);
+		return PTR_ERR(heap->name);
+	}
+	memcpy((char *)heap->name, name, sizeof(name));
+
+	ion_device_add_heap(heap);
+        return 0;
+}
+device_initcall(ion_add_dummy_unmapped_heaps);
+#endif
