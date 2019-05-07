@@ -52,3 +52,28 @@ config ION_UNMAPPED_HEAP
 	  Unlike carveout heaps these are assumed to be not mappable by
 	  kernel or user-space.
 	  Unless you know your system has these regions, you should say N here.
+
+config ION_DUMMY_UNMAPPED_HEAP
+	bool "ION dummy driver define an ION unmapped heap"
+	depends on ION_UNMAPPED_HEAP
+	help
+	  Dummy ION driver will create a unmapped heap from physical
+	  location provided through CONFIG_ION_DUMMY_UNMAPPED_BASE and
+	  CONFIG_ION_DUMMY_UNMAPPED_SIZE.
+
+config ION_DUMMY_UNMAPPED_BASE
+	hex "Physical base address of the ION unmapped heap"
+	depends on ION_DUMMY_UNMAPPED_HEAP
+	default 0
+	help
+	  Allows one the statically define an unmapped heap from the
+	  ION dummy driver to exercice unamped heaps buffer managment.
+
+config ION_DUMMY_UNMAPPED_SIZE
+	hex "Physical byte size of the ION unmapped heap"
+	depends on ION_DUMMY_UNMAPPED_HEAP
+	default 0
+	help
+	  Allows one the statically define an unmapped heap from the
+	  ION dummy driver to exercice unamped heaps buffer managment.
+
