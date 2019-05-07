@@ -341,4 +341,20 @@ static inline struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t si
 }
 #endif
 
+#ifdef CONFIG_ION_UNMAPPED_HEAP
+/**
+ * ion_unmapped_heap_create
+ * @base:		base address of carveout memory
+ * @size:		size of carveout memory region
+ *
+ * Creates an unmapped ion_heap using the passed in data
+ */
+struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size);
+#else
+static inline struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size)
+{
+	return ERR_PTR(-ENODEV);
+}
+#endif
+
 #endif /* _ION_H */
