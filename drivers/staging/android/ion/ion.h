@@ -351,7 +351,7 @@ static inline struct ion_heap *ion_chunk_heap_create(phys_addr_t base, size_t si
  */
 struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size);
 #else
-struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size)
+static inline struct ion_heap *ion_unmapped_heap_create(phys_addr_t base, size_t size)
 {
 	return ERR_PTR(-ENODEV);
 }
