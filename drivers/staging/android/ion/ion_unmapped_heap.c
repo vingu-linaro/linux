@@ -129,11 +129,6 @@ static int ion_add_dummy_unmapped_heaps(void)
 {
         struct ion_heap *heap;
 	const char name[] = DUMMY_UNAMMPED_HEAP_NAME;
-	struct ion_platform_heap pheap = {
-		.type	= ION_HEAP_TYPE_UNMAPPED,
-		.base   = CONFIG_ION_DUMMY_UNMAPPED_BASE,
-		.size   = CONFIG_ION_DUMMY_UNMAPPED_SIZE,
-	};
 
 	heap = ion_unmapped_heap_create(CONFIG_ION_DUMMY_UNMAPPED_BASE,
 					CONFIG_ION_DUMMY_UNMAPPED_SIZE);
