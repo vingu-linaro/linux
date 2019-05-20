@@ -357,6 +357,7 @@ struct stm32_gate_cfg {
 	struct gate_cfg		*gate;
 	struct stm32_mgate	*mgate;
 	const struct clk_ops	*ops;
+	const struct clk_ops	*ops_sec;
 };
 
 struct stm32_div_cfg {
@@ -1338,7 +1339,8 @@ static u32 stm32_clk_writel_secure(u32 value, void __iomem *reg)
 	struct arm_smccc_res res;
 	u32 address;
 
-	address = offset_in_page(reg);
+	//address = offset_in_page(reg);
+	address = (unsigned int)reg & ~PAGE_MASK;
 
 	arm_smccc_smc(STM32_SVC_RCC, STM32_WRITE, address, value, 0, 0, 0,
 		      0, &res);
@@ -1357,13 +1359,14 @@ static u32 stm32_clk_bit_secure(u32 cmd, u32 value, void __iomem *reg)
 	struct arm_smccc_res res;
 	u32 address;
 
-	address = offset_in_page(reg);
+	//address = offset_in_page(reg);
+	address = (unsigned int)reg & ~PAGE_MASK;
 
 	arm_smccc_smc(STM32_SVC_RCC, cmd, address, value, 0, 0, 0,
 		      0, &res);
 
 	if (res.a0)
-		pr_warn("%s: Failed to write in secure mode at 0x%x (err = %ld)\n"
+		pr_warn("%s: Failed to write bit in secure mode at 0x%x (err = %ld)\n"
 				, __func__
 				, address
 				, res.a0);
@@ -1430,7 +1433,7 @@ static int clk_smux_set_parent(struct clk_hw *hw, u8 index)
 
 	spin_lock_irqsave(mux->lock, flags);
 
-	val = clk_readl(mux->reg);
+	val = readl_relaxed(mux->reg);
 	val &= ~(mux->mask << mux->shift);
 	val |= index << mux->shift;
 
@@ -1472,7 +1475,7 @@ static struct clk_hw *clk_hw_register_smux(struct device *dev,
 
 	init.ops = &clk_smux_ops;
 
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags; // | CLK_IS_BASIC;
 	init.parent_names = parent_names;
 	init.num_parents = num_parents;
 
@@ -1561,7 +1564,7 @@ static int clk_sdivider_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (divider->flags & CLK_DIVIDER_HIWORD_MASK) {
 		val = div_mask(divider->width) << (divider->shift + 16);
 	} else {
-		val = clk_readl(divider->reg);
+		val = readl_relaxed(divider->reg);
 		val &= ~(div_mask(divider->width) << divider->shift);
 	}
 	val |= (u32)value << divider->shift;
@@ -1605,7 +1608,7 @@ clk_hw_register_sdivider_table(struct device *dev, const char *name,
 	else
 		init.ops = &clk_sdivider_ops;
 
-	init.flags = flags | CLK_IS_BASIC;
+	init.flags = flags; // | CLK_IS_BASIC;
 	init.parent_names = (parent_name ? &parent_name : NULL);
 	init.num_parents = (parent_name ? 1 : 0);
 
