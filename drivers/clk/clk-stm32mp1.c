@@ -10,12 +10,22 @@
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <dt-bindings/clock/stm32mp1-clks.h>
+
+#define HSE_FROM_SCMI
+#define HSI_FROM_SCMI
+#define CSI_FROM_SCMI
+#define LSE_FROM_SCMI
+#define LSI_FROM_SCMI
+
+#define WITH_SCMI_CLOCKS
 
 static DEFINE_SPINLOCK(rlock);
 
@@ -1658,37 +1668,65 @@ static const struct stm32_mux_cfg ker_mux_cfg[M_LAST] = {
 
 static const struct clock_config stm32mp1_clock_cfg[] = {
 	/* Oscillator divider */
+#ifdef HSI_FROM_SCMI
+	FIXED_FACTOR(NO_ID, "ck_hsi1", "clk-hsi", 0, 1, 1),
+	DIV(NO_ID, "clk-hsi-div", "ck_hsi1", CLK_DIVIDER_POWER_OF_TWO,
+	    RCC_HSICFGR, 0, 2, CLK_DIVIDER_READ_ONLY),
+	FIXED_FACTOR(CK_HSI, "ck_hsi", "ck_hsi1", 0, 1, 1),
+#else
 	DIV(NO_ID, "clk-hsi-div", "clk-hsi", CLK_DIVIDER_POWER_OF_TWO,
 	    RCC_HSICFGR, 0, 2, CLK_DIVIDER_READ_ONLY),
+	GATE_MP1(CK_HSI, "ck_hsi", "clk-hsi-div", 0, RCC_OCENSETR, 0, 0),
+#endif
 
 	/*  External / Internal Oscillators */
+#ifdef HSE_FROM_SCMI
+	FIXED_FACTOR(CK_HSE, "ck_hse", "clk-hse", 0, 1, 1),
+#else
 	GATE_MP1(CK_HSE, "ck_hse", "clk-hse", 0, RCC_OCENSETR, 8, 0),
+#endif
+#ifdef CSI_FROM_SCMI
+	FIXED_FACTOR(CK_CSI, "clk_csi", "clk-csi", 0, 1, 1),
+#else
 	/* ck_csi is used by IO compensation and should be critical */
 	GATE_MP1(CK_CSI, "ck_csi", "clk-csi", CLK_IS_CRITICAL,
 		 RCC_OCENSETR, 4, 0),
-	GATE_MP1(CK_HSI, "ck_hsi", "clk-hsi-div", 0, RCC_OCENSETR, 0, 0),
+#endif
+#ifdef LSI_FROM_SCMI
+	FIXED_FACTOR(CK_LSI, "ck_lsi", "clk-lsi", 0, 1, 1),
+#else
 	GATE(CK_LSI, "ck_lsi", "clk-lsi", 0, RCC_RDLSICR, 0, 0),
+#endif
+#ifdef LSE_FROM_SCMI
+	FIXED_FACTOR(CK_LSE, "ck_lse", "clk-lse", 0, 1, 1),
+#else
 	GATE(CK_LSE, "ck_lse", "clk-lse", 0, RCC_BDCR, 0, 0),
+#endif
 
 	FIXED_FACTOR(CK_HSE_DIV2, "clk-hse-div2", "ck_hse", 0, 1, 2),
 
+#if !defined(WITH_SCMI_CLOCKS) // PLLx_y from SCMI
 	/* ref clock pll */
 	MUX(NO_ID, "ref1", ref12_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK12SELR,
 	    0, 2, CLK_MUX_READ_ONLY),
 
 	MUX(NO_ID, "ref3", ref3_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK3SELR,
 	    0, 2, CLK_MUX_READ_ONLY),
+#endif
 
 	MUX(NO_ID, "ref4", ref4_parents, CLK_OPS_PARENT_ENABLE, RCC_RCK4SELR,
 	    0, 2, CLK_MUX_READ_ONLY),
 
+#if !defined(WITH_SCMI_CLOCKS)
 	/* PLLs */
 	PLL(PLL1, "pll1", "ref1", CLK_IGNORE_UNUSED, RCC_PLL1CR),
 	PLL(PLL2, "pll2", "ref1", CLK_IGNORE_UNUSED, RCC_PLL2CR),
 	PLL(PLL3, "pll3", "ref3", CLK_IGNORE_UNUSED, RCC_PLL3CR),
+#endif
 	PLL(PLL4, "pll4", "ref4", CLK_IGNORE_UNUSED, RCC_PLL4CR),
 
 	/* ODF */
+#if !defined(WITH_SCMI_CLOCKS)
 	COMPOSITE(PLL1_P, "pll1_p", PARENT("pll1"), 0,
 		  _GATE(RCC_PLL1CR, 4, 0),
 		  _NO_MUX,
@@ -1723,6 +1761,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 		  _GATE(RCC_PLL3CR, 6, 0),
 		  _NO_MUX,
 		  _DIV(RCC_PLL3CFGR2, 16, 7, 0, NULL)),
+#endif
 
 	COMPOSITE(PLL4_P, "pll4_p", PARENT("pll4"), 0,
 		  _GATE(RCC_PLL4CR, 4, 0),
@@ -1852,14 +1891,20 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(I2C4, "i2c4", "pclk5", 0, G_I2C4),
 	PCLK(I2C6, "i2c6", "pclk5", 0, G_I2C6),
 	PCLK(USART1, "usart1", "pclk5", 0, G_USART1),
+#if !defined(WITH_SCMI_CLOCKS)
 	PCLK(RTCAPB, "rtcapb", "pclk5", CLK_IGNORE_UNUSED |
 	     CLK_IS_CRITICAL, G_RTCAPB),
+#endif
 	PCLK(TZC1, "tzc1", "ck_axi", CLK_IGNORE_UNUSED, G_TZC1),
 	PCLK(TZC2, "tzc2", "ck_axi", CLK_IGNORE_UNUSED, G_TZC2),
 	PCLK(TZPC, "tzpc", "pclk5", CLK_IGNORE_UNUSED, G_TZPC),
+#if !defined(WITH_SCMI_CLOCKS)
 	PCLK(IWDG1, "iwdg1", "pclk5", 0, G_IWDG1),
+#endif
+#if !defined(WITH_SCMI_CLOCKS)
 	PCLK(BSEC, "bsec", "pclk5", CLK_IGNORE_UNUSED, G_BSEC),
 	PCLK(STGEN, "stgen", "pclk5", CLK_IGNORE_UNUSED, G_STGEN),
+#endif
 	PCLK(DMA1, "dma1", "ck_mcu", 0, G_DMA1),
 	PCLK(DMA2, "dma2", "ck_mcu",  0, G_DMA2),
 	PCLK(DMAMUX, "dmamux", "ck_mcu", 0, G_DMAMUX),
@@ -1884,11 +1929,13 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	PCLK(GPIOI, "gpioi", "ck_mcu", 0, G_GPIOI),
 	PCLK(GPIOJ, "gpioj", "ck_mcu", 0, G_GPIOJ),
 	PCLK(GPIOK, "gpiok", "ck_mcu", 0, G_GPIOK),
+#if !defined(WITH_SCMI_CLOCKS)
 	PCLK(GPIOZ, "gpioz", "ck_axi", CLK_IGNORE_UNUSED, G_GPIOZ),
 	PCLK(CRYP1, "cryp1", "ck_axi", CLK_IGNORE_UNUSED, G_CRYP1),
 	PCLK(HASH1, "hash1", "ck_axi", CLK_IGNORE_UNUSED, G_HASH1),
 	PCLK(RNG1, "rng1", "ck_axi", 0, G_RNG1),
 	PCLK(BKPSRAM, "bkpsram", "ck_axi", CLK_IGNORE_UNUSED, G_BKPSRAM),
+#endif
 	PCLK(MDMA, "mdma", "ck_axi", 0, G_MDMA),
 	PCLK(GPU, "gpu", "ck_axi", 0, G_GPU),
 	PCLK(ETHTX, "ethtx", "ck_axi", 0, G_ETHTX),
@@ -1909,30 +1956,40 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	KCLK(SDMMC3_K, "sdmmc3_k", sdmmc3_src, 0, G_SDMMC3, M_SDMMC3),
 	KCLK(FMC_K, "fmc_k", fmc_src, 0, G_FMC, M_FMC),
 	KCLK(QSPI_K, "qspi_k", qspi_src, 0, G_QSPI, M_QSPI),
+#if !defined(WITH_SCMI_CLOCKS)
 	KCLK(RNG1_K, "rng1_k", rng_src, 0, G_RNG1, M_RNG1),
+#endif
 	KCLK(RNG2_K, "rng2_k", rng_src, 0, G_RNG2, M_RNG2),
 	KCLK(USBPHY_K, "usbphy_k", usbphy_src, 0, G_USBPHY, M_USBPHY),
+#if !defined(WITH_SCMI_CLOCKS)
 	KCLK(STGEN_K, "stgen_k", stgen_src, CLK_IS_CRITICAL, G_STGEN, M_STGEN),
+#endif
 	KCLK(SPDIF_K, "spdif_k", spdif_src, 0, G_SPDIF, M_SPDIF),
 	KCLK(SPI1_K, "spi1_k", spi123_src, 0, G_SPI1, M_SPI1),
 	KCLK(SPI2_K, "spi2_k", spi123_src, 0, G_SPI2, M_SPI23),
 	KCLK(SPI3_K, "spi3_k", spi123_src, 0, G_SPI3, M_SPI23),
 	KCLK(SPI4_K, "spi4_k", spi45_src, 0, G_SPI4, M_SPI45),
 	KCLK(SPI5_K, "spi5_k", spi45_src, 0, G_SPI5, M_SPI45),
+#if !defined(WITH_SCMI_CLOCKS)
 	KCLK(SPI6_K, "spi6_k", spi6_src, 0, G_SPI6, M_SPI6),
+#endif
 	KCLK(CEC_K, "cec_k", cec_src, 0, G_CEC, M_CEC),
 	KCLK(I2C1_K, "i2c1_k", i2c12_src, 0, G_I2C1, M_I2C12),
 	KCLK(I2C2_K, "i2c2_k", i2c12_src, 0, G_I2C2, M_I2C12),
 	KCLK(I2C3_K, "i2c3_k", i2c35_src, 0, G_I2C3, M_I2C35),
 	KCLK(I2C5_K, "i2c5_k", i2c35_src, 0, G_I2C5, M_I2C35),
+#if !defined(WITH_SCMI_CLOCKS)
 	KCLK(I2C4_K, "i2c4_k", i2c46_src, 0, G_I2C4, M_I2C46),
 	KCLK(I2C6_K, "i2c6_k", i2c46_src, 0, G_I2C6, M_I2C46),
+#endif
 	KCLK(LPTIM1_K, "lptim1_k", lptim1_src, 0, G_LPTIM1, M_LPTIM1),
 	KCLK(LPTIM2_K, "lptim2_k", lptim23_src, 0, G_LPTIM2, M_LPTIM23),
 	KCLK(LPTIM3_K, "lptim3_k", lptim23_src, 0, G_LPTIM3, M_LPTIM23),
 	KCLK(LPTIM4_K, "lptim4_k", lptim45_src, 0, G_LPTIM4, M_LPTIM45),
 	KCLK(LPTIM5_K, "lptim5_k", lptim45_src, 0, G_LPTIM5, M_LPTIM45),
+#if !defined(WITH_SCMI_CLOCKS)
 	KCLK(USART1_K, "usart1_k", usart1_src, 0, G_USART1, M_USART1),
+#endif
 	KCLK(USART2_K, "usart2_k", usart234578_src, 0, G_USART2, M_UART24),
 	KCLK(USART3_K, "usart3_k", usart234578_src, 0, G_USART3, M_UART35),
 	KCLK(UART4_K, "uart4_k", usart234578_src, 0, G_UART4, M_UART24),
@@ -1967,11 +2024,13 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	/* RTC clock */
 	DIV(NO_ID, "ck_hse_rtc", "ck_hse", 0, RCC_RTCDIVR, 0, 6, 0),
 
+#if !defined(WITH_SCMI_CLOCKS) // PLLx_y from SCMI
 	COMPOSITE(RTC, "ck_rtc", rtc_src, CLK_OPS_PARENT_ENABLE |
 		   CLK_SET_RATE_PARENT,
 		  _GATE(RCC_BDCR, 20, 0),
 		  _MUX(RCC_BDCR, 16, 2, 0),
 		  _NO_DIV),
+#endif
 
 	/* MCO clocks */
 	COMPOSITE(CK_MCO1, "ck_mco1", mco1_src, CLK_OPS_PARENT_ENABLE |
@@ -2015,6 +2074,7 @@ static const struct of_device_id stm32mp1_match_data[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(of, stm32mp1_match_data);
 
 static int stm32_register_hw_clk(struct device *dev,
 				 struct clk_hw_onecell_data *clk_data,
@@ -2072,6 +2132,7 @@ static int stm32_rcc_init(struct device_node *np,
 	for (n = 0; n < max_binding; n++)
 		hws[n] = ERR_PTR(-ENOENT);
 
+pr_err("-----stm32mp1 CLOCKs init\n");
 	for (n = 0; n < data->num; n++) {
 		err = stm32_register_hw_clk(NULL, clk_data, base, &rlock,
 					    &data->cfg[n]);
@@ -2085,24 +2146,63 @@ static int stm32_rcc_init(struct device_node *np,
 		}
 	}
 
-	return of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
+pr_err("-----stm32mp1 CLOCKs init final\n");
+	n = of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
+pr_err("-----stm32mp1 CLOCKs init final done\n");
+	return n;
 }
 
-static void stm32mp1_rcc_init(struct device_node *np)
+static int stm32mp1_rcc_init(struct device_node *np)
 {
 	void __iomem *base;
+	int ret;
 
 	base = of_iomap(np, 0);
 	if (!base) {
 		pr_err("%pOFn: unable to map resource", np);
 		of_node_put(np);
-		return;
+		return -ENOMEM;
 	}
 
-	if (stm32_rcc_init(np, base, stm32mp1_match_data)) {
+	ret = stm32_rcc_init(np, base, stm32mp1_match_data);
+	if (ret) {
 		iounmap(base);
 		of_node_put(np);
 	}
+
+	return ret;
 }
 
-CLK_OF_DECLARE_DRIVER(stm32mp1_rcc, "st,stm32mp1-rcc", stm32mp1_rcc_init);
+static int stm32mp1_rcc_clocks_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	int ret;
+
+	dev_err(dev, "RCC init\n");
+	ret = stm32mp1_rcc_init(dev->of_node);
+	dev_err(dev, "RCC init (%d)\n", ret);
+	return ret;
+}
+
+static int stm32mp1_rcc_clocks_remove(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *child, *np = dev->of_node;
+
+	WARN_ON(1);
+
+	for_each_available_child_of_node(np, child)
+		of_clk_del_provider(child);
+
+	return 0;
+}
+
+static struct platform_driver stm32mp1_rcc_clocks_driver = {
+	.driver	= {
+		.name = "stm32mp1_rcc",
+		.of_match_table = stm32mp1_match_data,
+	},
+	.probe = stm32mp1_rcc_clocks_probe,
+	.remove = stm32mp1_rcc_clocks_remove,
+};
+module_platform_driver(stm32mp1_rcc_clocks_driver);
