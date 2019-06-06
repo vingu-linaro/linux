@@ -28,6 +28,36 @@
 		};
 	};
 
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			//method = "smc";
+			method = "spci";
+		};
+		scmi {
+			compatible = "arm,scmi";
+			method = "spci";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "okay";
+
+			scmi_devpd: protocol@11 {
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+	};
+
+	spci {
+		compatible = "arm,spci-alpha2";
+		status = "okay";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
@@ -1264,13 +1294,6 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
-		};
-	};
-
-	firmware {
-		optee {
-			compatible = "linaro,optee-tz";
-			method = "smc";
 		};
 	};
 };
