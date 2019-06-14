@@ -509,6 +509,7 @@
 			reg = <0x40016000 0x400>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc CEC_K>, <&clk_lse>;
+			//clocks = <&rcc CEC_K>, <&scmi_clk CK_SCMI_LSE>;
 			clock-names = "cec", "hdmi-cec";
 			status = "disabled";
 		};
@@ -814,6 +815,7 @@
 				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&rcc CK_HSE>, <&rcc FDCAN_K>;
+			//clocks = <&scmi_clk CK_SCMI_HSE>, <&rcc FDCAN_K>;
 			clock-names = "hclk", "cclk";
 			bosch,mram-cfg = <0x1400 0 0 32 0 0 2 2>;
 			status = "disabled";
@@ -827,6 +829,7 @@
 				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
 			clocks = <&rcc CK_HSE>, <&rcc FDCAN_K>;
+			//clocks = <&scmi_clk CK_SCMI_HSE>, <&rcc FDCAN_K>;
 			clock-names = "hclk", "cclk";
 			bosch,mram-cfg = <0x0 0 0 32 0 0 2 2>;
 			status = "disabled";
@@ -1063,6 +1066,8 @@
 			reg = <0x54001000 0x400>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc CRYP1>;
+			//clocks = <&scmi_clk CK_SCMI_CRYP1>;
+			//resets = <&scmi_rst SCMI_RST_CRYP1>
 			resets = <&rcc CRYP1_R>;
 			status = "disabled";
 		};
@@ -1072,6 +1077,8 @@
 			reg = <0x54002000 0x400>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc HASH1>;
+			//clocks = <&scmi_clk CK_SCMI_HASH1>;
+			//resets = <&scmi_rst SCMI_RST_HASH1>
 			resets = <&rcc HASH1_R>;
 			dmas = <&mdma1 31 0x10 0x1000A02 0x0 0x0>;
 			dma-names = "in";
@@ -1083,6 +1090,8 @@
 			compatible = "st,stm32-rng";
 			reg = <0x54003000 0x400>;
 			clocks = <&rcc RNG1_K>;
+			//clocks = <&scmi_clk CK_SCMI_RNG1>;
+			//resets = <&scmi_rst SCMI_RST_RNG1>
 			resets = <&rcc RNG1_R>;
 			status = "disabled";
 		};
@@ -1202,6 +1211,7 @@
 			compatible = "st,stm32mp1-iwdg";
 			reg = <0x5a002000 0x400>;
 			clocks = <&rcc IWDG2>, <&rcc CK_LSI>;
+			//clocks = <&rcc IWDG2>, <&scmi_clk CK_SCMI_LSI>;
 			clock-names = "pclk", "lsi";
 			status = "disabled";
 		};
@@ -1231,6 +1241,8 @@
 			reg = <0x5c000000 0x400>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc USART1_K>;
+			//clocks = <&scmi_clk CK_SCMI_USART1>;
+			//resets = <&scmi_rst SCMI_RST_USART1>
 			status = "disabled";
 		};
 
@@ -1241,6 +1253,8 @@
 			reg = <0x5c001000 0x400>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc SPI6_K>;
+			//clocks = <&scmi_clk CK_SCMI_SPI6>;
+			//resets = <&scmi_rst RST_SCMI_SPI6>
 			resets = <&rcc SPI6_R>;
 			dmas = <&mdma1 34 0x0 0x40008 0x0 0x0>,
 			       <&mdma1 35 0x0 0x40002 0x0 0x0>;
@@ -1255,6 +1269,8 @@
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc I2C4_K>;
+			//clocks = <&scmi_clk CK_SCMI_I2C4>;
+			//resets = <&scmi_rst RST_SCMI_I2C4>
 			resets = <&rcc I2C4_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1265,6 +1281,7 @@
 			compatible = "st,stm32mp1-rtc";
 			reg = <0x5c004000 0x400>;
 			clocks = <&rcc RTCAPB>, <&rcc RTC>;
+			//clocks = <&scmi_clk CK_SCMI_RTCAPB>, <&rcc RTC>; // TODO: CK_SCMI_RTC
 			clock-names = "pclk", "rtc_ck";
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -1290,6 +1307,8 @@
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc I2C6_K>;
+			//clocks = <&scmi_clk CK_SCMI_I2C6>;
+			//resets = <&scmi_rst RST_SCMI_I2C6>
 			resets = <&rcc I2C6_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
