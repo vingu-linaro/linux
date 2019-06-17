@@ -276,6 +276,7 @@ typedef struct spci_msg_sp_init {
 
 typedef struct spci_buf_info_desc {
 	uint16_t flags;
+	uint16_t reserved[3];	/* fix alignment issue */
 	uint64_t address;
 	uint16_t id;
 	uuid_t   uuid;
@@ -304,7 +305,8 @@ typedef struct spci_buf_info_desc {
 typedef struct spci_buf_info_table {
 	uint8_t signature[MAX_SIG_LENGTH];
 	uint16_t version;
-	uint32_t length;
+	uint16_t length_h;
+	uint16_t length_l;
 	uint16_t attributes;
 	uint32_t buf_cnt;
 	spci_buf_info_desc_t payload[];

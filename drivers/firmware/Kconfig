@@ -75,7 +75,7 @@ config ARM_SCPI_PROTOCOL
 
 config ARM_SPCI_PROTOCOL
 	tristate "ARM Secure Partition Client Interface (SPCI) Message Protocol"
-	depends on ARM64 || COMPILE_TEST
+	depends on ARM || ARM64 || COMPILE_TEST
 	default y
 	help
           Secure Partition Client Interface (SPCI) Message Protocol is defined

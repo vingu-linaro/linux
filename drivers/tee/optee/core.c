@@ -542,14 +542,14 @@ static void optee_spci_msg(unsigned long a0, unsigned long a1,
 	int rc;
 	uint32_t out_len = sizeof(struct arm_smccc_res);
 	struct optee_msg {
-		uint64_t a0;    /* SMC function ID */
-		uint64_t a1;    /* Parameter */
-		uint64_t a2;    /* Parameter */
-		uint64_t a3;    /* Thread ID when returning from RPC */
-		uint64_t a4;    /* Not used */
-		uint64_t a5;    /* Not used */
-		uint64_t a6;    /* Not used */
-		uint64_t a7;    /* Hypervisor Client ID */
+		unsigned long a0;    /* SMC function ID */
+		unsigned long a1;    /* Parameter */
+		unsigned long a2;    /* Parameter */
+		unsigned long a3;    /* Thread ID when returning from RPC */
+		unsigned long a4;    /* Not used */
+		unsigned long a5;    /* Not used */
+		unsigned long a6;    /* Not used */
+		unsigned long a7;    /* Hypervisor Client ID */
 	} msg = {
 		.a0 = a0,
 		.a1 = a1,
