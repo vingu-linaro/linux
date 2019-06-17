@@ -51,6 +51,8 @@ static int scmi_protocol_init(int protocol_id, struct scmi_handle *handle)
 {
 	scmi_prot_init_fn_t fn = idr_find(&scmi_protocols, protocol_id);
 
+	pr_err("%s (0x%x)----------------------------\n", __func__, protocol_id);
+
 	if (unlikely(!fn))
 		return -EINVAL;
 	return fn(handle);
@@ -99,6 +101,7 @@ int scmi_driver_register(struct scmi_driver *driver, struct module *owner,
 			 const char *mod_name)
 {
 	int retval;
+	pr_err("%s----------------------------\n", __func__);
 
 	driver->driver.bus = &scmi_bus_type;
 	driver->driver.name = driver->name;
@@ -211,13 +214,15 @@ static int __init scmi_bus_init(void)
 {
 	int retval;
 
+	pr_err("%s----------------------------\n", __func__);
+
 	retval = bus_register(&scmi_bus_type);
 	if (retval)
 		pr_err("scmi protocol bus register failed (%d)\n", retval);
 
 	return retval;
 }
-subsys_initcall(scmi_bus_init);
+postcore_initcall(scmi_bus_init);
 
 static void __exit scmi_bus_exit(void)
 {

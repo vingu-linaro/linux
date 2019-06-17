@@ -952,7 +952,7 @@ static int scmi_probe(struct platform_device *pdev)
 	struct device_node *child, *np = dev->of_node;
 	struct scmi_ops *ops_fn;
 
-	pr_info("scmi_probe\n");
+	pr_err("%s----------------------------\n", __func__);
 
 	ops_fn = get_scmi_ops(np);
 	if (IS_ERR(ops_fn))
@@ -1022,7 +1022,14 @@ static struct platform_driver scmi_driver = {
 	.remove = scmi_remove,
 };
 
-module_platform_driver(scmi_driver);
+//module_platform_driver(scmi_driver);
+static int __init scmi_arch_init(void)
+{
+	pr_err("%s----------------------------\n", __func__);
+	return platform_driver_register(&scmi_driver);
+}
+postcore_initcall(scmi_arch_init);
+
 
 MODULE_ALIAS("platform: arm-scmi");
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
