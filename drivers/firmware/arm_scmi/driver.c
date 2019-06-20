@@ -19,6 +19,8 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/ktime.h>
+#include <linux/uuid.h>
+#include <linux/spci_protocol.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -26,7 +28,6 @@
 #include <linux/processor.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
-
 #include "common.h"
 
 #define MSG_ID_MASK		GENMASK(7, 0)
@@ -128,6 +129,7 @@ struct scmi_info {
 	u8 *protocols_imp;
 	struct list_head node;
 	int users;
+	struct scmi_ops *ops;
 };
 
 #define client_to_scmi_chan_info(c) container_of(c, struct scmi_chan_info, cl)
@@ -172,6 +174,88 @@ static inline int scmi_to_linux_errno(int errno)
 		return scmi_linux_errmap[-errno];
 	return -EIO;
 }
+
+
+struct scmi_ops {
+	int (*chan_setup)(struct scmi_info *info, struct device *dev, int prot_id);
+	int (*send_message)(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer);
+	void (*txdone)(struct scmi_chan_info *cinfo, int r);
+
+};
+
+/* When using mailbox */
+static int
+scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev, int prot_id);
+
+int scmi_mbox_send_message(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
+{
+	return mbox_send_message(cinfo->chan, xfer);
+}
+
+void scmi_mbox_txdone(struct scmi_chan_info *cinfo,  int r)
+{
+	/*
+	 * NOTE: we might prefer not to need the mailbox ticker to manage the
+	 * transfer queueing since the protocol layer queues things by itself.
+	 * Unfortunately, we have to kick the mailbox framework after we have
+	 * received our message.
+	 */
+	mbox_client_txdone(cinfo->chan, r);
+}
+
+struct scmi_ops scmi_mailbox_msg = {
+	.chan_setup = scmi_mbox_chan_setup,
+	.send_message = scmi_mbox_send_message,
+	.txdone = scmi_mbox_txdone
+};
+
+/* When using SPCI */
+#define SCMI_PAYLOAD_SIZE	(128)
+
+/* Structure to store a pointer to SPCI transport ops */
+static struct spci_ops *spci_ops;
+
+static int scmi_spci_chan_setup(struct scmi_info *info, struct device *dev, int prot_id);
+static void scmi_tx_prepare(struct mbox_client *cl, void *m);
+static void scmi_rx_callback(struct mbox_client *cl, void *m);
+
+int scmi_spci_send_message(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
+{
+	int ret;
+	struct scmi_shared_mem __iomem *mem = cinfo->payload;
+
+	/* TODO set the right message size */
+	uint32_t size = SCMI_PAYLOAD_SIZE;
+
+	scmi_tx_prepare(&cinfo->cl, xfer);
+
+	/* Mark message header to be catched by SPCI escape sequence */
+	iowrite32(0xDEADBEEF, &mem->reserved);
+
+	ret = spci_ops->msg_send_recv((struct spci_msg_imp_def *) cinfo->payload,
+				  size,
+				  (struct spci_msg_imp_def *)cinfo->payload,
+				  &size,
+				  0);
+	if (ret)
+		panic("SCMI invoke function error %d\n", ret);
+
+	scmi_rx_callback(&cinfo->cl, xfer);
+
+	return 0;
+}
+
+void scmi_spci_txdone(struct scmi_chan_info *cinfo,  int r)
+{
+	return;
+}
+
+struct scmi_ops scmi_spci_msg = {
+	.chan_setup = scmi_spci_chan_setup,
+	.send_message = scmi_spci_send_message,
+	.txdone = scmi_spci_txdone
+};
+
 
 /**
  * scmi_dump_header_dbg() - Helper to dump a message header.
@@ -393,7 +477,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	if (unlikely(!cinfo))
 		return -EINVAL;
 
-	ret = mbox_send_message(cinfo->chan, xfer);
+	ret = info->ops->send_message(cinfo, xfer);
 	if (ret < 0) {
 		dev_dbg(dev, "mbox send fail %d\n", ret);
 		return ret;
@@ -424,13 +508,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	if (!ret && xfer->hdr.status)
 		ret = scmi_to_linux_errno(xfer->hdr.status);
 
-	/*
-	 * NOTE: we might prefer not to need the mailbox ticker to manage the
-	 * transfer queueing since the protocol layer queues things by itself.
-	 * Unfortunately, we have to kick the mailbox framework after we have
-	 * received our message.
-	 */
-	mbox_client_txdone(cinfo->chan, ret);
+	info->ops->txdone(cinfo, ret);
 
 	return ret;
 }
@@ -659,6 +737,46 @@ static int scmi_mailbox_check(struct device_node *np)
 	return of_parse_phandle_with_args(np, "mboxes", "#mbox-cells", 0, &arg);
 }
 
+static int scmi_method_check(struct device_node *np)
+{
+	const char *method;
+
+	return of_property_read_string(np, "method", &method);
+}
+
+
+static struct scmi_ops *get_scmi_ops(struct device_node *np)
+{
+	const char *method;
+
+	pr_info("probing for conduit method from DT.\n");
+
+	/* mailbox method supported, check for the presence of one */
+	if (!scmi_mailbox_check(np)) {
+		pr_info("Use mailbox invoke method\n");
+		return &scmi_mailbox_msg;
+	}
+
+	if (of_property_read_string(np, "method", &method)) {
+		pr_warn("missing \"method\" property\n");
+		return ERR_PTR(-ENXIO);
+	}
+
+	if (!strcmp("spci", method)) {
+		spci_ops = get_spci_ops();
+		if (spci_ops == NULL) {
+			pr_warn("failed \"method\" init: %s \n", method);
+			return ERR_PTR(-ENOENT);
+		}
+		pr_info("Use SPCI invoke method\n");
+		return &scmi_spci_msg;
+	}
+
+	pr_warn("invalid \"method\" property: %s\n", method);
+	return ERR_PTR(-EINVAL);
+}
+
+
 static int scmi_mbox_free_channel(int id, void *p, void *data)
 {
 	struct scmi_chan_info *cinfo = p;
@@ -697,7 +815,7 @@ static int scmi_remove(struct platform_device *pdev)
 	return ret;
 }
 
-static inline int
+static int
 scmi_mbox_chan_setup(struct scmi_info *info, struct device *dev, int prot_id)
 {
 	int ret;
@@ -760,6 +878,47 @@ idr_alloc:
 	return 0;
 }
 
+static int
+scmi_spci_chan_setup(struct scmi_info *info, struct device *dev, int prot_id)
+{
+	int ret;
+	struct device_node *np = dev->of_node;
+	struct scmi_chan_info *cinfo;
+	struct mbox_client *cl;
+
+	if (scmi_method_check(np)) {
+		cinfo = idr_find(&info->tx_idr, SCMI_PROTOCOL_BASE);
+		goto idr_alloc;
+	}
+
+	cinfo = devm_kzalloc(info->dev, sizeof(*cinfo), GFP_KERNEL);
+	if (!cinfo)
+		return -ENOMEM;
+
+	cinfo->dev = dev;
+
+	cl = &cinfo->cl;
+	cl->dev = dev;
+	cl->tx_block = false;
+	cl->knows_txdone = true;
+
+	cinfo->payload = devm_kzalloc(info->dev, SCMI_PAYLOAD_SIZE, GFP_KERNEL);
+	if (!cinfo->payload) {
+		dev_err(dev, "failed to allocate SCMI Tx payload\n");
+		return -ENOMEM;
+	}
+
+idr_alloc:
+	ret = idr_alloc(&info->tx_idr, cinfo, prot_id, prot_id + 1, GFP_KERNEL);
+	if (ret != prot_id) {
+		dev_err(dev, "unable to allocate SCMI idr slot err %d\n", ret);
+		return ret;
+	}
+
+	cinfo->handle = &info->handle;
+	return 0;
+}
+
 static inline void
 scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 			    int prot_id)
@@ -773,7 +932,7 @@ scmi_create_protocol_device(struct device_node *np, struct scmi_info *info,
 		return;
 	}
 
-	if (scmi_mbox_chan_setup(info, &sdev->dev, prot_id)) {
+	if (info->ops->chan_setup(info, &sdev->dev, prot_id)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
 		return;
@@ -791,12 +950,13 @@ static int scmi_probe(struct platform_device *pdev)
 	struct scmi_info *info;
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node;
+	struct scmi_ops *ops_fn;
 
-	/* Only mailbox method supported, check for the presence of one */
-	if (scmi_mailbox_check(np)) {
-		dev_err(dev, "no mailbox found in %pOF\n", np);
-		return -EINVAL;
-	}
+	pr_info("scmi_probe\n");
+
+	ops_fn = get_scmi_ops(np);
+	if (IS_ERR(ops_fn))
+		return PTR_ERR(ops_fn);
 
 	desc = of_match_device(scmi_of_match, dev)->data;
 
@@ -807,6 +967,7 @@ static int scmi_probe(struct platform_device *pdev)
 	info->dev = dev;
 	info->desc = desc;
 	INIT_LIST_HEAD(&info->node);
+	info->ops = ops_fn;
 
 	ret = scmi_xfer_info_init(info);
 	if (ret)
@@ -819,9 +980,7 @@ static int scmi_probe(struct platform_device *pdev)
 	handle->dev = info->dev;
 	handle->version = &info->version;
 
-	ret = scmi_mbox_chan_setup(info, dev, SCMI_PROTOCOL_BASE);
-	if (ret)
-		return ret;
+	ret = ops_fn->chan_setup(info, dev, SCMI_PROTOCOL_BASE);
 
 	ret = scmi_base_protocol_init(handle);
 	if (ret) {
