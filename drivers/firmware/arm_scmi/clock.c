@@ -305,9 +305,11 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 	int clkid, ret;
 	struct clock_info *cinfo;
 
+	pr_err("%s----------------------------\n", __func__);
+
 	scmi_version_get(handle, SCMI_PROTOCOL_CLOCK, &version);
 
-	dev_dbg(handle->dev, "Clock Version %d.%d\n",
+	dev_info(handle->dev, "Clock Version %d.%d\n",
 		PROTOCOL_REV_MAJOR(version), PROTOCOL_REV_MINOR(version));
 
 	cinfo = devm_kzalloc(handle->dev, sizeof(*cinfo), GFP_KERNEL);
@@ -335,9 +337,14 @@ static int scmi_clock_protocol_init(struct scmi_handle *handle)
 	return 0;
 }
 
+// Exported by drivers/clk/clk-scmi.c
+int __init scmi_clock_init_bus(void);
+
 static int __init scmi_clock_init(void)
 {
+	pr_err("%s----------------------------\n", __func__);
+
 	return scmi_protocol_register(SCMI_PROTOCOL_CLOCK,
-				      &scmi_clock_protocol_init);
+				     &scmi_clock_protocol_init);
 }
-subsys_initcall(scmi_clock_init);
+postcore_initcall(scmi_clock_init);

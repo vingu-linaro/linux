@@ -167,7 +167,7 @@ static int scmi_clocks_probe(struct scmi_device *sdev)
 			devm_kfree(dev, sclk);
 			hws[idx] = NULL;
 		} else {
-			dev_dbg(dev, "Registered clock:%s\n", sclk->info->name);
+			dev_info(dev, "Registered clock:%s\n", sclk->info->name);
 			hws[idx] = &sclk->hw;
 		}
 	}
@@ -187,7 +187,17 @@ static struct scmi_driver scmi_clocks_driver = {
 	.probe = scmi_clocks_probe,
 	.id_table = scmi_id_table,
 };
-module_scmi_driver(scmi_clocks_driver);
+
+//module_scmi_driver(scmi_clocks_driver);
+
+static int __init scmi_clock_init_bus(void)
+{
+	pr_err("%s----------------------------\n", __func__);
+
+	return scmi_driver_register(&scmi_clocks_driver,
+				    THIS_MODULE, KBUILD_MODNAME);
+}
+subsys_initcall(scmi_clock_init_bus);
 
 MODULE_AUTHOR("Sudeep Holla <sudeep.holla@arm.com>");
 MODULE_DESCRIPTION("ARM SCMI clock driver");
