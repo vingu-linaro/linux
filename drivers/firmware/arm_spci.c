@@ -42,6 +42,7 @@ struct spci_drvinfo {
 };
 
 static struct spci_drvinfo *spci_info;
+static struct spci_drvinfo spci_info_data;
 
 /*
  * get_version() enables the caller to determine whether the right SPCI version
@@ -533,10 +534,21 @@ static int spci_msg_buf_exchange(struct device_node *np)
 		SPCI_BUF_TABLE_ATTR(1, SPCI_BUF_TABLE_ATTR_GRAN_4K);
 	buf_info_tbl->buf_cnt =	SPCI_MAX_BUFS;
 
+	pr_err("[SPCI] buf_info ver=%x, len=%x%x; attr=%x count=%x\n",
+		(unsigned int)buf_info_tbl->version,
+		(unsigned int)buf_info_tbl->length_h,
+		(unsigned int)buf_info_tbl->length_l,
+		(unsigned int)buf_info_tbl->attributes,
+		(unsigned int)buf_info_tbl->buf_cnt);
+
 	/* Populate the message buffer information descriptors */
 	for (ctr = 0; ctr < SPCI_MAX_BUFS; ctr++) {
 		buf_info_tbl->payload[ctr].flags = SPCI_BUF_DESC_FLAG_TYPE(ctr);
 		buf_info_tbl->payload[ctr].address = buf_desc[ctr].pa;
+
+	pr_err("[SPCI] buf_desc flags=%x, address=%llx\n",
+		(unsigned int)buf_info_tbl->payload[ctr].flags,
+		(unsigned long long int)buf_info_tbl->payload[ctr].address);
 
 		/* TODO: ignored for now */
 		buf_info_tbl->payload[ctr].id = 0;
@@ -551,10 +563,11 @@ static int spci_msg_buf_exchange(struct device_node *np)
 		      buf_info_tbl_pa,
 		      cnt * PAGE_SIZE, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status) {
-		pr_err("Unable to describe SPCI msg bufs (%d) \n",
+		pr_err("[SPCI] Unable to describe SPCI msg bufs (%d) \n",
 		       res.result.status);
 		return -EIO;
 	}
+	pr_err("[SPCI] buf_list_exchange OK\n");
 
 	/* Free pages used by SPCI buffer information table */
 	free_pages((unsigned long) buf_info_tbl, cnt);
@@ -593,9 +606,9 @@ static int spci_msg_buf_setup(struct device_node *np)
 		 */
 		mutex_init(&buf_desc[ctr].buf_mutex);
 
-		pr_devel("SPCI %s buffer description\n", (ctr ? "TX": "RX"));
-		pr_devel("va = 0x%lx\n", buf_desc[ctr].va);
-		pr_devel("pa = 0x%x\n", buf_desc[ctr].pa);
+		pr_info("[SPCI] SPCI %s buffer description\n", (ctr ? "TX": "RX"));
+		pr_info("[SPCI] va = 0x%lx\n", buf_desc[ctr].va);
+		pr_info("[SPCI] pa = 0x%x\n", buf_desc[ctr].pa);
 
 		/* Initialise RX/TX buffers */
 		buf = (spci_buf_t *) va;
@@ -619,6 +632,7 @@ static int spci_msg_buf_setup(struct device_node *np)
 	return spci_msg_buf_exchange(np);
 }
 
+#if 0
 /*
  * TODO: This functions implements the basic ability to discover and parse the
  * SPCI node in a DT. The node itself will be populated with more information
@@ -660,6 +674,50 @@ static struct platform_driver spci_driver = {
 	.probe = spci_probe,
 };
 module_platform_driver(spci_driver);
+
+int __init spci_dt_init(void)
+{
+	return 0;
+}
+#else
+static int __init spci_init_np(struct device_node *np)
+{
+	int rc = 0;
+
+	spci_info = &spci_info_data;  //kzalloc(sizeof(*spci_info), GFP_KERNEL);
+	if (!spci_info)
+		return -ENOMEM;
+
+	/* Check SPCI version */
+	rc = spci_init_version(spci_info, np);
+	if (rc) {
+		pr_err("spci_init_version() failed\n");
+		return rc;
+	}
+
+	spci_info->spci_ops = &spci_ops;
+
+	/* Setup SPCI message buffers */
+	return spci_msg_buf_setup(np);
+}
+
+static const struct of_device_id spci_of_match[] __initconst = {
+	{ .compatible = "arm,spci-alpha2", },
+	{},
+};
+
+int __init spci_dt_init(void)
+{
+	struct device_node *np = NULL;
+	const struct of_device_id *matched_np = NULL;
+
+	np = of_find_matching_node_and_match(NULL, spci_of_match, &matched_np);
+	if (!np || !of_device_is_available(np))
+		return -ENODEV;
+
+	return spci_init_np(np);
+}
+#endif //0
 
 MODULE_AUTHOR("Achin Gupta <achin.gupta@arm.com>");
 MODULE_DESCRIPTION("ARM SPCI message passing driver");

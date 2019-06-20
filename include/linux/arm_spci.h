@@ -312,5 +312,11 @@ typedef struct spci_buf_info_table {
 	spci_buf_info_desc_t payload[];
 } spci_buf_info_table_t;
 
+#if defined(CONFIG_ARM_SPCI_PROTOCOL)
+int __init spci_dt_init(void);
+#else
+static inline int spci_dt_init(void) { return 0; }
+#endif
+
 #endif /* __ASSEMBLER__ */
 #endif /* SPCI_H */

@@ -528,6 +528,8 @@ static void __init mm_init(void)
 	pti_init();
 }
 
+void spci_dt_init(void);
+
 asmlinkage __visible void __init start_kernel(void)
 {
 	char *command_line;
@@ -637,6 +639,9 @@ asmlinkage __visible void __init start_kernel(void)
 	init_IRQ();
 	tick_init();
 	rcu_init_nohz();
+
+	spci_dt_init();
+
 	init_timers();
 	hrtimers_init();
 	softirq_init();
