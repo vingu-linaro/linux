@@ -233,7 +233,7 @@ int scmi_base_protocol_init(struct scmi_handle *h)
 	if (!prot_imp)
 		return -ENOMEM;
 
-	rev->major_ver = PROTOCOL_REV_MAJOR(version),
+	rev->major_ver = PROTOCOL_REV_MAJOR(version);
 	rev->minor_ver = PROTOCOL_REV_MINOR(version);
 
 	scmi_base_attributes_get(handle);
