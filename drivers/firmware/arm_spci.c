@@ -115,8 +115,8 @@ static int spci_msg_recv(struct spci_msg_imp_def *out,
 		return -EIO;
 	}
 
-	pr_devel("%s: addr 0x%llx: len %u bytes:\n", __FUNCTION__,
-		 (uint64_t) msg_hdr->payload,
+	pr_devel("%s: addr %p: len %u bytes:\n", __FUNCTION__,
+		 (void *)msg_hdr->payload,
 		 msg_hdr->length);
 
 	if (*out_len < msg_hdr->length) {
@@ -222,8 +222,8 @@ static int spci_msg_send_try(struct spci_msg_imp_def *in,
 		if (tx_buf->hdr.state != SPCI_BUF_STATE_EMPTY)
 			panic("Invalid TX buffer state after SPCI_MSG_SEND \n");
 
-		pr_devel("%s: addr 0x%llx: len %u bytes:\n", __FUNCTION__,
-			 (uint64_t) msg_hdr->payload,
+		pr_devel("%s: addr %p: len %u bytes:\n", __FUNCTION__,
+			 (void *)msg_hdr->payload,
 			 in_len);
 	}
 
@@ -527,7 +527,8 @@ static int spci_msg_buf_exchange(struct device_node *np)
 	       SPCI_BUF_TABLE_SIGNATURE,
 	       MAX_SIG_LENGTH);
 	buf_info_tbl->version = 0; 	/* TODO: ignored for now */
-	buf_info_tbl->length = len;
+	buf_info_tbl->length_h = len >> 16;
+	buf_info_tbl->length_l = len;
 	buf_info_tbl->attributes =
 		SPCI_BUF_TABLE_ATTR(1, SPCI_BUF_TABLE_ATTR_GRAN_4K);
 	buf_info_tbl->buf_cnt =	SPCI_MAX_BUFS;
@@ -593,8 +594,8 @@ static int spci_msg_buf_setup(struct device_node *np)
 		mutex_init(&buf_desc[ctr].buf_mutex);
 
 		pr_devel("SPCI %s buffer description\n", (ctr ? "TX": "RX"));
-		pr_devel("va = 0x%lx  \n", buf_desc[ctr].va);
-		pr_devel("pa = 0x%llx \n", buf_desc[ctr].pa);
+		pr_devel("va = 0x%lx\n", buf_desc[ctr].va);
+		pr_devel("pa = 0x%x\n", buf_desc[ctr].pa);
 
 		/* Initialise RX/TX buffers */
 		buf = (spci_buf_t *) va;

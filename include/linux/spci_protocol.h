@@ -6,6 +6,7 @@
 #define SPCI_PRIVATE_H
 
 #include <linux/arm_spci.h>
+#include <linux/mutex.h>
 
 #define PAGE_COUNT(x) (((x) + PAGE_SIZE - 1) >> PAGE_SHIFT)
 
