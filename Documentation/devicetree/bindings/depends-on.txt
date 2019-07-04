@@ -1,0 +1,26 @@
+Functional dependency linking
+=============================
+
+Apart from parent-child relationships, devices (consumers) often have
+functional dependencies on other devices (suppliers). Common examples of
+suppliers are clock, regulators, pinctrl, etc. However not all of them are
+dependencies with well defined devicetree bindings. Also, not all functional
+dependencies are mandatory as the device might be able to operate in a limited
+mode without some of the dependencies.
+
+The depends-on property allows marking these mandatory functional dependencies
+between one or more devices. The depends-on property is used by the consumer
+device to point to all its mandatory supplier devices.
+
+Optional properties:
+- depends-on:	A list of phandles to mandatory suppliers of the device.
+
+
+Examples:
+Here, the device is dependent on only 2 of the 3 clock providers
+dev@40031000 {
+	      compatible = "name";
+	      reg = <0x40031000 0x1000>;
+	      clocks = <&osc_1 1>, <&osc_2 7> <&osc_3 5>;
+	      depends-on = <&osc_1>, <&osc_3>;
+};
