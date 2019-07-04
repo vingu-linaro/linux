@@ -48,6 +48,8 @@ struct property {
 struct of_irq_controller;
 #endif
 
+struct device;
+
 struct device_node {
 	const char *name;
 	phandle phandle;
@@ -68,6 +70,7 @@ struct device_node {
 	unsigned int unique_id;
 	struct of_irq_controller *irq_trans;
 #endif
+	struct device *dev;		/* Device created from this node */
 };
 
 #define MAX_PHANDLE_ARGS 16

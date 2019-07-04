@@ -42,6 +42,8 @@ static int of_dev_node_match(struct device *dev, void *data)
 	return dev->of_node == data;
 }
 
+static DEFINE_SPINLOCK(of_dev_lock);
+
 /**
  * of_find_device_by_node - Find the platform_device associated with a node
  * @np: Pointer to device tree node
@@ -55,7 +57,18 @@ struct platform_device *of_find_device_by_node(struct device_node *np)
 {
 	struct device *dev;
 
-	dev = bus_find_device(&platform_bus_type, NULL, np, of_dev_node_match);
+	/*
+	 * Spinlock needed to make sure np->dev doesn't get freed between NULL
+	 * check inside and kref count increment inside get_device(). This is
+	 * achieved by grabbing the spinlock before setting np->dev = NULL in
+	 * of_platform_device_destroy().
+	 */
+	spin_lock(&of_dev_lock);
+	dev = get_device(np->dev);
+	spin_unlock(&of_dev_lock);
+	if (!dev)
+		dev = bus_find_device(&platform_bus_type, NULL, np,
+				      of_dev_node_match);
 	return dev ? to_platform_device(dev) : NULL;
 }
 EXPORT_SYMBOL(of_find_device_by_node);
@@ -196,6 +209,7 @@ static struct platform_device *of_platform_device_create_pdata(
 		platform_device_put(dev);
 		goto err_clear_flag;
 	}
+	np->dev = &dev->dev;
 
 	return dev;
 
@@ -556,6 +570,10 @@ int of_platform_device_destroy(struct device *dev, void *data)
 	if (of_node_check_flag(dev->of_node, OF_POPULATED_BUS))
 		device_for_each_child(dev, NULL, of_platform_device_destroy);
 
+	/* Spinlock is needed for of_find_device_by_node() to work */
+	spin_lock(&of_dev_lock);
+	dev->of_node->dev = NULL;
+	spin_unlock(&of_dev_lock);
 	of_node_clear_flag(dev->of_node, OF_POPULATED);
 	of_node_clear_flag(dev->of_node, OF_POPULATED_BUS);
 
