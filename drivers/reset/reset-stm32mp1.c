@@ -7,6 +7,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
@@ -75,9 +76,10 @@ static const struct reset_control_ops stm32_reset_ops = {
 };
 
 static const struct of_device_id stm32_reset_dt_ids[] = {
-	{ .compatible = "st,stm32mp1-rcc"},
+	{ .compatible = "st,stm32mp1-rcc2", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, stm32_reset_dt_ids);
 
 static int stm32_reset_probe(struct platform_device *pdev)
 {
@@ -112,4 +114,9 @@ static struct platform_driver stm32_reset_driver = {
 	},
 };
 
-builtin_platform_driver(stm32_reset_driver);
+static int __init stm32mp1_rcc_reset_driver_init(void)
+{
+	return platform_driver_register(&stm32_reset_driver);
+}
+subsys_initcall(stm32mp1_rcc_reset_driver_init);
+//builtin_platform_driver(stm32_reset_driver);
