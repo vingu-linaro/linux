@@ -22,6 +22,9 @@ struct arm_smc_chan_data {
 	int irq;
 };
 
+#define SMC_MAILBOX_YIELD		0xffff0004
+#define SMC_MAILBOX_YIELDED		0x32000003
+
 static int arm_smc_send_data(struct mbox_chan *link, void *data)
 {
 	struct arm_smc_chan_data *chan_data = link->con_priv;
@@ -40,6 +43,18 @@ static int arm_smc_send_data(struct mbox_chan *link, void *data)
 	else
 		arm_smccc_smc(function_id, cmd->a1, cmd->a2, cmd->a3, cmd->a4,
 			      cmd->a5, cmd->a6, cmd->a7, &res);
+
+	// TODO: condition to some DT config
+	while (res.a0 == SMC_MAILBOX_YIELD) {
+		might_sleep();
+
+		if (chan_data->flags & ARM_SMC_MBOX_USE_HVC)
+			arm_smccc_hvc(SMC_MAILBOX_YIELDED,
+				      res.a1, res.a2, res.a3, 0, 0, 0, 0, &res);
+		else
+			arm_smccc_smc(SMC_MAILBOX_YIELDED,
+				      res.a1, res.a2, res.a3, 0, 0, 0, 0, &res);
+	}
 
 	if (chan_data->irq)
 		return 0;
