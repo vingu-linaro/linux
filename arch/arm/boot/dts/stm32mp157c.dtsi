@@ -5,6 +5,7 @@
  */
 
 #define WITH_SCMI_CLOCKS
+#define WITH_SCMI_RESET
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
@@ -93,6 +94,11 @@
 			scmi_clk: protocol@14 {
 				reg = <0x14>;
 				#clock-cells = <1>;
+			};
+
+			scmi_reset: protocol@16 {
+				reg = <0x16>;
+				#reset-cells = <1>;
 			};
 		};
 	};
@@ -1113,8 +1119,11 @@
 			reg = <0x54001000 0x400>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk CK_SCMI_CRYP1>;
-			//resets = <&scmi_rst SCMI_RST_CRYP1>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_CRYP1>;
+#else
 			resets = <&rcc2 CRYP1_R>;
+#endif
 			status = "disabled";
 		};
 
@@ -1123,8 +1132,11 @@
 			reg = <0x54002000 0x400>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk CK_SCMI_HASH1>;
-			//resets = <&scmi_rst SCMI_RST_HASH1>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_HASH1>;
+#else
 			resets = <&rcc2 HASH1_R>;
+#endif
 			dmas = <&mdma1 31 0x10 0x1000A02 0x0 0x0>;
 			dma-names = "in";
 			dma-maxburst = <2>;
@@ -1135,8 +1147,11 @@
 			compatible = "st,stm32-rng";
 			reg = <0x54003000 0x400>;
 			clocks = <&scmi_clk CK_SCMI_RNG1>;
-			//resets = <&scmi_rst SCMI_RST_RNG1>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_RNG1>;
+#else
 			resets = <&rcc2 RNG1_R>;
+#endif
 			status = "disabled";
 		};
 
@@ -1284,7 +1299,11 @@
 			reg = <0x5c000000 0x400>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk CK_SCMI_USART1>;
-			//resets = <&scmi_rst SCMI_RST_USART1>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_USART1>;
+#else
+			resets = <&rcc2 USART1_R>;
+#endif
 			status = "disabled";
 		};
 
@@ -1295,8 +1314,11 @@
 			reg = <0x5c001000 0x400>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk CK_SCMI_SPI6>;
-			//resets = <&scmi_rst RST_SCMI_SPI6>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_SPI6>;
+#else
 			resets = <&rcc2 SPI6_R>;
+#endif
 			dmas = <&mdma1 34 0x0 0x40008 0x0 0x0>,
 			       <&mdma1 35 0x0 0x40002 0x0 0x0>;
 			dma-names = "rx", "tx";
@@ -1310,8 +1332,11 @@
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&scmi_clk CK_SCMI_I2C4>;
-			//resets = <&scmi_rst RST_SCMI_I2C4>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_I2C4>;
+#else
 			resets = <&rcc2 I2C4_R>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
@@ -1345,10 +1370,12 @@
 			interrupt-names = "event", "error";
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
-			//clocks = <&rcc I2C6_K>;
 			clocks = <&scmi_clk CK_SCMI_I2C6>;
-			//resets = <&scmi_rst RST_SCMI_I2C6>
+#ifdef WITH_SCMI_RESET
+			resets = <&scmi_reset RST_SCMI_I2C6>;
+#else
 			resets = <&rcc2 I2C6_R>;
+#endif
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";

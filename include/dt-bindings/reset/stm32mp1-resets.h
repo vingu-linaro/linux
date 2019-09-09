@@ -105,4 +105,15 @@
 #define GPIOJ_R		19785
 #define GPIOK_R		19786
 
+/* SCMI reset domain identifiers */
+#define RST_SCMI_SPI6		0
+#define RST_SCMI_I2C4		1
+#define RST_SCMI_I2C6		2
+#define RST_SCMI_USART1		3
+#define RST_SCMI_STGEN		4
+#define RST_SCMI_GPIOZ		5
+#define RST_SCMI_CRYP1		6
+#define RST_SCMI_HASH1		7
+#define RST_SCMI_RNG1		8
+
 #endif /* _DT_BINDINGS_STM32MP1_RESET_H_ */
