@@ -3,6 +3,9 @@
  * Copyright (C) STMicroelectronics 2017 - All Rights Reserved
  * Author: Ludovic Barre <ludovic.barre@st.com> for STMicroelectronics.
  */
+
+#define WITH_SCMI_CLOCKS
+
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/stm32mp1-clks.h>
 #include <dt-bindings/reset/stm32mp1-resets.h>
@@ -25,6 +28,72 @@
 			compatible = "arm,cortex-a7";
 			device_type = "cpu";
 			reg = <1>;
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		tzsram: tzram@0xfe000000 {
+			reg = <0xfe000000 0x01e00000>;
+			no-map;
+		};
+		tznsram: tzram@0xffe00000 {
+			reg = <0xffe00000 0x00200000>;
+			no-map;
+		};
+	};
+
+	nsec_shm: sram {
+		compatible = "mmio-sram";
+		reg = <0xfffff000 0x00001000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0xfffff000 0x00001000>;
+		status = "disabled";
+
+		scmi_shm: scmi_shm@0 {
+			reg = <0x0000 0x1000>;
+		};
+	};
+
+	scmi_mbox: mailbox@0 {
+		#mbox-cells = <1>;
+		compatible = "arm,smc-mbox";
+		method = "smc";
+		arm,num-chans = <0x1>;
+		arm,func-ids = <0x020000f0>;
+		status = "disabled";
+	};
+
+	firmware {
+		optee: optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+			status = "disabled";
+		};
+		scmi: scmi {
+			compatible = "arm,scmi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+			method = "smc";
+
+			mboxes = <&scmi_mbox 0>;
+			mbox-names = "nsec-scmi-txrx";
+			shmem = <&scmi_shm>;
+
+			scmi_devpd: protocol@11 {
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
+
+			scmi_clk: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
 		};
 	};
 
@@ -52,6 +121,7 @@
 		interrupt-parent = <&intc>;
 	};
 
+#if !defined(WITH_SCMI_CLOCKS)
 	clocks {
 		clk_hse: clk-hse {
 			#clock-cells = <0>;
@@ -83,6 +153,7 @@
 			clock-frequency = <4000000>;
 		};
 	};
+#endif
 
 	thermal-zones {
 		cpu_thermal: cpu-thermal {
@@ -480,7 +551,7 @@
 			compatible = "st,stm32-cec";
 			reg = <0x40016000 0x400>;
 			interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc CEC_K>, <&clk_lse>;
+			clocks = <&rcc CEC_K>, <&scmi_clk CK_SCMI_LSE>;
 			clock-names = "cec", "hdmi-cec";
 			status = "disabled";
 		};
@@ -785,7 +856,7 @@
 			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
-			clocks = <&rcc CK_HSE>, <&rcc FDCAN_K>;
+			clocks = <&scmi_clk CK_SCMI_HSE>, <&rcc FDCAN_K>;
 			clock-names = "hclk", "cclk";
 			bosch,mram-cfg = <0x1400 0 0 32 0 0 2 2>;
 			status = "disabled";
@@ -798,7 +869,7 @@
 			interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "int0", "int1";
-			clocks = <&rcc CK_HSE>, <&rcc FDCAN_K>;
+			clocks = <&scmi_clk CK_SCMI_HSE>, <&rcc FDCAN_K>;
 			clock-names = "hclk", "cclk";
 			bosch,mram-cfg = <0x0 0 0 32 0 0 2 2>;
 			status = "disabled";
@@ -919,6 +990,7 @@
 			reg = <0x50000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
+			depends-on = <&scmi>;
 		};
 
 		exti: interrupt-controller@5000d000 {
@@ -1034,7 +1106,8 @@
 			compatible = "st,stm32mp1-cryp";
 			reg = <0x54001000 0x400>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc CRYP1>;
+			clocks = <&scmi_clk CK_SCMI_CRYP1>;
+			//resets = <&scmi_rst SCMI_RST_CRYP1>
 			resets = <&rcc CRYP1_R>;
 			status = "disabled";
 		};
@@ -1043,7 +1116,8 @@
 			compatible = "st,stm32f756-hash";
 			reg = <0x54002000 0x400>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc HASH1>;
+			clocks = <&scmi_clk CK_SCMI_HASH1>;
+			//resets = <&scmi_rst SCMI_RST_HASH1>
 			resets = <&rcc HASH1_R>;
 			dmas = <&mdma1 31 0x10 0x1000A02 0x0 0x0>;
 			dma-names = "in";
@@ -1054,7 +1128,8 @@
 		rng1: rng@54003000 {
 			compatible = "st,stm32-rng";
 			reg = <0x54003000 0x400>;
-			clocks = <&rcc RNG1_K>;
+			clocks = <&scmi_clk CK_SCMI_RNG1>;
+			//resets = <&scmi_rst SCMI_RST_RNG1>
 			resets = <&rcc RNG1_R>;
 			status = "disabled";
 		};
@@ -1152,7 +1227,7 @@
 		dsi: dsi@5a000000 {
 			compatible = "st,stm32-dsi";
 			reg = <0x5a000000 0x800>;
-			clocks = <&rcc DSI_K>, <&clk_hse>, <&rcc DSI_PX>;
+			clocks = <&rcc DSI_K>, <&scmi_clk CK_SCMI_HSE>, <&rcc DSI_PX>;
 			clock-names = "pclk", "ref", "px_clk";
 			resets = <&rcc DSI_R>;
 			reset-names = "apb";
@@ -1173,7 +1248,7 @@
 		iwdg2: watchdog@5a002000 {
 			compatible = "st,stm32mp1-iwdg";
 			reg = <0x5a002000 0x400>;
-			clocks = <&rcc IWDG2>, <&rcc CK_LSI>;
+			clocks = <&rcc IWDG2>, <&scmi_clk CK_SCMI_LSI>;
 			clock-names = "pclk", "lsi";
 			status = "disabled";
 		};
@@ -1202,7 +1277,8 @@
 			compatible = "st,stm32h7-uart";
 			reg = <0x5c000000 0x400>;
 			interrupts = <GIC_SPI 37 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc USART1_K>;
+			clocks = <&scmi_clk CK_SCMI_USART1>;
+			//resets = <&scmi_rst SCMI_RST_USART1>
 			status = "disabled";
 		};
 
@@ -1212,7 +1288,8 @@
 			compatible = "st,stm32h7-spi";
 			reg = <0x5c001000 0x400>;
 			interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc SPI6_K>;
+			clocks = <&scmi_clk CK_SCMI_SPI6>;
+			//resets = <&scmi_rst RST_SCMI_SPI6>
 			resets = <&rcc SPI6_R>;
 			dmas = <&mdma1 34 0x0 0x40008 0x0 0x0>,
 			       <&mdma1 35 0x0 0x40002 0x0 0x0>;
@@ -1226,7 +1303,8 @@
 			interrupt-names = "event", "error";
 			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc I2C4_K>;
+			clocks = <&scmi_clk CK_SCMI_I2C4>;
+			//resets = <&scmi_rst RST_SCMI_I2C4>
 			resets = <&rcc I2C4_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -1236,7 +1314,7 @@
 		rtc: rtc@5c004000 {
 			compatible = "st,stm32mp1-rtc";
 			reg = <0x5c004000 0x400>;
-			clocks = <&rcc RTCAPB>, <&rcc RTC>;
+			clocks = <&scmi_clk CK_SCMI_RTCAPB>, <&rcc RTC>; // TODO: CK_SCMI_RTC
 			clock-names = "pclk", "rtc_ck";
 			interrupts = <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -1261,7 +1339,9 @@
 			interrupt-names = "event", "error";
 			interrupts = <GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&rcc I2C6_K>;
+			//clocks = <&rcc I2C6_K>;
+			clocks = <&scmi_clk CK_SCMI_I2C6>;
+			//resets = <&scmi_rst RST_SCMI_I2C6>
 			resets = <&rcc I2C6_R>;
 			#address-cells = <1>;
 			#size-cells = <0>;

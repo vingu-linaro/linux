@@ -616,7 +616,11 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				reg = <0 0x400>;
+#if defined(WITH_SCMI_CLOCKS)
+				clocks = <&scmi_clk CK_SCMI_GPIOZ>;
+#else
 				clocks = <&rcc GPIOZ>;
+#endif
 				st,bank-name = "GPIOZ";
 				st,bank-ioport = <11>;
 				ngpios = <8>;

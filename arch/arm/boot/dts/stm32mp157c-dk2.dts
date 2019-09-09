@@ -74,3 +74,19 @@
 		};
 	};
 };
+
+&optee {
+	status = "okay";
+};
+
+&nsec_shm {
+	status = "okay";
+};
+
+&scmi_mbox {
+	status = "okay";
+};
+
+&scmi {
+	status = "okay";
+};
