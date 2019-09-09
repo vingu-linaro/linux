@@ -150,11 +150,12 @@ static int scmi_domain_reset(const struct scmi_handle *handle, u32 domain,
 	dom = t->tx.buf;
 	dom->domain_id = cpu_to_le32(domain);
 	dom->flags = cpu_to_le32(flags);
-	dom->domain_id = cpu_to_le32(state);
+	dom->reset_state = cpu_to_le32(state);
 
-	if (rdom->async_reset)
-		ret = scmi_do_xfer_with_response(handle, t);
-	else
+	if (rdom->async_reset) {
+		BUG_ON(1);
+		//ret = scmi_do_xfer_with_response(handle, t);
+	} else
 		ret = scmi_do_xfer(handle, t);
 
 	scmi_xfer_put(handle, t);
