@@ -2742,6 +2742,12 @@ static int stm32mp1_rcc_clocks_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
+	struct clk *clk;
+
+	/* Platform clocks may rely on external clocks: wait it is available */
+	clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(clk) && PTR_ERR(clk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	dev_err(dev, "RCC init\n");
 	ret = stm32mp1_rcc_init(dev->of_node);

@@ -996,7 +996,7 @@
 			reg = <0x50000000 0x1000>;
 			#clock-cells = <1>;
 			#reset-cells = <1>;
-			depends-on = <&scmi>;
+			clocks = <&scmi_clk CK_SCMI_PLL1_R>;
 		};
 
 		rcc2: rcc2@50000000 {
