@@ -72,8 +72,6 @@ static irqreturn_t chan_irq_handler(int irq, void *data)
 {
 	struct mbox_chan *chan = data;
 
-//pr_info("smc-mailbox: received data by irq\n");
-
 	mbox_chan_received_data(chan, NULL);
 
 	return IRQ_HANDLED;
@@ -200,15 +198,7 @@ static struct platform_driver arm_smc_mbox_driver = {
 	.probe		= arm_smc_mbox_probe,
 	.remove		= arm_smc_mbox_remove,
 };
-//module_platform_driver(arm_smc_mbox_driver);
-
-static int __init arm_smc_mbox_driver_init(void)
-{
-	pr_err("%s----------------------------\n", __func__);
-	return platform_driver_register(&arm_smc_mbox_driver);
-}
-//core_initcall(arm_smc_mbox_driver_init);
-subsys_initcall(arm_smc_mbox_driver_init);
+module_platform_driver(arm_smc_mbox_driver);
 
 MODULE_AUTHOR("Andre Przywara <andre.przywara@arm.com>");
 MODULE_DESCRIPTION("Generic ARM smc mailbox driver");
