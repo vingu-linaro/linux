@@ -6,6 +6,8 @@
  *
  * Copyright (C) 2018 ARM Ltd.
  */
+#ifndef ARM_SCMI_COMMON_H
+#define ARM_SCMI_COMMON_H
 
 #include <linux/bitfield.h>
 #include <linux/completion.h>
@@ -209,3 +211,5 @@ extern const struct scmi_desc scmi_mailbox_desc;
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr);
 void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
+
+#endif /* ARM_SCMI_COMMON_H */
