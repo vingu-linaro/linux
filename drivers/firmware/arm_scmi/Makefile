@@ -3,5 +3,6 @@ obj-y	= scmi-bus.o scmi-driver.o scmi-protocols.o scmi-transport.o
 scmi-bus-y = bus.o
 scmi-driver-y = driver.o
 scmi-transport-y = smt.o mailbox.o smccc_func_id.o
+scmi-transport-$(CONFIG_OPTEE) = optee_service.o
 scmi-protocols-y = base.o clock.o perf.o power.o reset.o sensors.o
 obj-$(CONFIG_ARM_SCMI_POWER_DOMAIN) += scmi_pm_domain.o

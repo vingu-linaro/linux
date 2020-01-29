@@ -725,6 +725,7 @@ static const struct of_device_id scmi_of_match[] = {
 	{ .compatible = "arm,scmi", .data = &scmi_mailbox_desc },
 	{ .compatible = "arm,scmi-mbox", .data = &scmi_mailbox_desc },
 	{ .compatible = "arm,scmi-smc", .data = &scmi_smc_desc },
+	{ .compatible = "arm,scmi-optee", .data = &scmi_optee_desc },
 	{ /* Sentinel */ },
 };
 
