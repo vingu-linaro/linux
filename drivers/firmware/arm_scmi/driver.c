@@ -310,7 +310,8 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 	if (!ret && xfer->hdr.status)
 		ret = scmi_to_linux_errno(xfer->hdr.status);
 
-	info->desc->ops->mark_txdone(cinfo, ret);
+	if (info->desc->ops->mark_txdone)
+		info->desc->ops->mark_txdone(cinfo, ret);
 
 	return ret;
 }
