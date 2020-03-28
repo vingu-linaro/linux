@@ -29,8 +29,8 @@ struct scmi_shared_mem {
 	u8 msg_payload[];
 };
 
-void shmem_tx_prepare(struct scmi_shared_mem __iomem *shmem,
-		      struct scmi_xfer *xfer)
+void shmem_write_message(struct scmi_shared_mem __iomem *shmem,
+			 struct scmi_xfer *xfer)
 {
 	/*
 	 * Ideally channel must be free by now unless OS timeout last
