@@ -570,6 +570,14 @@ static int scmi_xfer_info_init(struct scmi_info *sinfo)
 	return 0;
 }
 
+/* SCMI root node has no reg property */
+static bool node_is_scmi_root_node(const struct device_node *np)
+{
+	u32 protocol_id;
+
+	return of_property_read_u32(np, "reg", &protocol_id);
+}
+
 static int scmi_chan_setup(struct scmi_info *info, struct device *dev,
 			   int prot_id, bool tx)
 {
@@ -586,7 +594,8 @@ static int scmi_chan_setup(struct scmi_info *info, struct device *dev,
 	if (cinfo)
 		return 0;
 
-	if (!info->desc->ops->chan_available(dev, idx)) {
+	/* Channels are defined in SCMI device root node */
+	if (!node_is_scmi_root_node(dev->of_node)) {
 		cinfo = idr_find(idr, SCMI_PROTOCOL_BASE);
 		if (unlikely(!cinfo)) /* Possible only if platform has no Rx */
 			return -EINVAL;

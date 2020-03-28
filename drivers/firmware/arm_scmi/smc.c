@@ -34,11 +34,6 @@ struct scmi_smc {
 
 static DEFINE_MUTEX(smc_mutex);
 
-static bool smc_chan_available(struct device *dev, int idx)
-{
-	return true;
-}
-
 /* Simple wrapper functions to be able to use a function pointer */
 static void _smccc_smc(unsigned long func_id, struct arm_smccc_res *res)
 {
@@ -177,7 +172,6 @@ smc_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 }
 
 static struct scmi_transport_ops scmi_smc_ops = {
-	.chan_available = smc_chan_available,
 	.chan_setup = smc_chan_setup,
 	.chan_free = smc_chan_free,
 	.send_message = smc_send_message,
