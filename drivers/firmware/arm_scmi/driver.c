@@ -301,7 +301,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 			      xfer->hdr.poll_completion);
 
 	ret = info->desc->ops->send_message(cinfo, xfer);
-	if (ret < 0) {
+	if (ret) {
 		dev_dbg(dev, "Failed to send message %d\n", ret);
 		return ret;
 	}
