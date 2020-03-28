@@ -841,6 +841,10 @@ ATTRIBUTE_GROUPS(versions);
 static const struct of_device_id scmi_of_match[] = {
 #ifdef CONFIG_MAILBOX
 	{ .compatible = "arm,scmi", .data = &scmi_mailbox_desc },
+	{ .compatible = "arm,scmi-mbox", .data = &scmi_mailbox_desc },
+#endif
+#ifdef CONFIG_HAVE_ARM_SMCCC
+	{ .compatible = "arm,scmi-smc", .data = &scmi_smc_funcid_desc },
 #endif
 	{ /* Sentinel */ },
 };
