@@ -40,11 +40,14 @@
 
 	firmware {
 		scmi0: scmi-0 {
-			compatible = "arm,scmi-smc";
+			compatible = "arm,scmi-optee";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			arm,func-id = <0x82002000>;
+			// Override when using SMC funcID transport
+			//compatible = "arm,scmi-smc";
+			//arm,func-id = <0x82002000>;
+
 			shmem = <&scmi0_shm>;
 
 			scmi0_clk: protocol@14 {
@@ -58,11 +61,14 @@
 		};
 
 		scmi1: scmi-1 {
-			compatible = "arm,scmi-smc";
+			compatible = "arm,scmi-optee";
 			#address-cells = <1>;
 			#size-cells = <0>;
 
-			arm,func-id = <0x82002001>;
+			// Override when using SMC funcID transport
+			//compatible = "arm,scmi-smc";
+			//arm,func-id = <0x82002001>;
+
 			shmem = <&scmi1_shm>;
 
 			/* Default disable since stm32mp15x RCC[MCKPROT]=0 */
