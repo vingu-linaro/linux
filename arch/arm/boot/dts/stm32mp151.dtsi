@@ -1314,6 +1314,10 @@
 			reg = <0x58000000 0x1000>;
 			interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc MDMA>;
+
+			// Test: should be ok :)
+			resets = <&scmi0_reset RST_SCMI0_MDMA>;
+
 			#dma-cells = <5>;
 			dma-channels = <32>;
 			dma-requests = <48>;
