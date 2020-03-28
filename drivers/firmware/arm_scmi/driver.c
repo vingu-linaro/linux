@@ -307,13 +307,17 @@ void scmi_xfer_put(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 
 #define SCMI_MAX_POLL_TO_NS	(100 * NSEC_PER_USEC)
 
-static bool scmi_xfer_done_no_timeout(struct scmi_chan_info *cinfo,
-				      struct scmi_xfer *xfer, ktime_t stop)
+static bool scmi_poll_done(struct scmi_chan_info *cinfo, struct scmi_xfer *xfer)
 {
 	struct scmi_info *info = handle_to_scmi_info(cinfo->handle);
 
-	return info->desc->ops->poll_done(cinfo, xfer) ||
-	       ktime_after(ktime_get(), stop);
+	return info->desc->ops->poll_done(cinfo, xfer);
+}
+
+static bool scmi_xfer_done_no_timeout(struct scmi_chan_info *cinfo,
+				      struct scmi_xfer *xfer, ktime_t stop)
+{
+	return scmi_poll_done(cinfo, xfer) || ktime_after(ktime_get(), stop);
 }
 
 /**
@@ -353,7 +357,7 @@ int scmi_do_xfer(const struct scmi_handle *handle, struct scmi_xfer *xfer)
 
 		spin_until_cond(scmi_xfer_done_no_timeout(cinfo, xfer, stop));
 
-		if (ktime_before(ktime_get(), stop))
+		if (scmi_poll_done(cinfo, xfer))
 			info->desc->ops->fetch_response(cinfo, xfer);
 		else
 			ret = -ETIMEDOUT;
