@@ -266,4 +266,39 @@
 				<0 0 43 &gic 0 0 GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
 				<0 0 44 &gic 0 0 GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>;
 	};
+
+	scmi_sram: sram@2ffff000 {
+		compatible = "mmio-sram";
+		reg = <0x831ff000 0x1000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x831ff000 0x1000>;
+
+		scmi_shm: scmi_shm {
+			reg = <0x80 0x80>;
+		};
+	};
+
+	firmware {
+		scmi: scmi {
+			compatible = "arm,scmi-optee";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			shmem = <&scmi_shm>;
+
+			protocol@11 {
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
+			protocol@13 {
+				reg = <0x13>;
+	                        #clock-cells = <1>;
+			};
+			protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+		};
+	};
 };
