@@ -111,7 +111,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	mutex_unlock(&smc_mutex);
 
-	return res.a0;
+	return res.a0 == ~0 ? -EINVAL : 0;
 }
 
 static void smc_mark_txdone(struct scmi_chan_info *cinfo, int ret)
