@@ -114,7 +114,7 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	mutex_unlock(&scmi_info->shmem_lock);
 
-	return res.a0;
+	return res.a0 == ~0 ? -EINVAL : 0;
 }
 
 static void smc_fetch_response(struct scmi_chan_info *cinfo,
