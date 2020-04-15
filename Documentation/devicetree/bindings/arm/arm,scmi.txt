@@ -78,6 +78,12 @@ Required properties:
 - arm,smc-id : function identifier used a argument to the SMC/HVC instruction
                as defined in Arm SMCCC specification [6].
 
+- method : "smc" or "hvc"
+            Optional property defining the conduit method for to be used
+	    for invoking the SCMI server in secure world.
+	    "smc" states instruction SMC #0 is used whereas "hvc" states
+	    instruction HVC #0 is used.
+
 Clock/Performance bindings for the clocks/OPPs based on SCMI Message Protocol
 ------------------------------------------------------------
 
