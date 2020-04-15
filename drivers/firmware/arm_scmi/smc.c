@@ -16,6 +16,8 @@
 
 #include "common.h"
 
+typedef void (scmi_arm_smccc_invoke_fn)(unsigned long, struct arm_smccc_res *);
+
 /**
  * struct scmi_smc - Structure representing a SCMI smc transport
  *
@@ -23,10 +25,10 @@
  * @shmem: Transmit/Receive shared memory area
  * @func_id: smc/hvc call function id
  */
-
 struct scmi_smc {
 	struct scmi_chan_info *cinfo;
 	struct scmi_shared_mem __iomem *shmem;
+	scmi_arm_smccc_invoke_fn *invoke_fn;
 	u32 func_id;
 };
 
@@ -35,6 +37,41 @@ static DEFINE_MUTEX(smc_mutex);
 static bool smc_chan_available(struct device *dev, int idx)
 {
 	return true;
+}
+
+/* Simple wrapper functions to be able to use a function pointer */
+static void _smccc_smc(unsigned long func_id, struct arm_smccc_res *res)
+{
+	arm_smccc_smc(func_id, 0, 0, 0, 0, 0, 0, 0, res);
+}
+
+static void _smccc_hvc(unsigned long func_id, struct arm_smccc_res *res)
+{
+        arm_smccc_hvc(func_id, 0, 0, 0, 0, 0, 0, 0, res);
+}
+
+static void _smccc_1_1(unsigned long func_id, struct arm_smccc_res *res)
+{
+	arm_smccc_1_1_invoke(func_id, 0, 0, 0, 0, 0, 0, 0, res);
+}
+
+static scmi_arm_smccc_invoke_fn *get_invoke_function(struct device *dev)
+{
+        const char *method;
+
+        pr_info("probing for conduit method.\n");
+
+        if (device_property_read_string(dev, "method", &method))
+		return _smccc_1_1;
+
+        if (!strcmp("hvc", method))
+                return _smccc_hvc;
+
+        if (!strcmp("smc", method))
+                return _smccc_smc;
+
+        dev_err(dev, "Invalid \"method\" property: %s\n", method);
+        return ERR_PTR(-EINVAL);
 }
 
 static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
@@ -76,6 +113,10 @@ static int smc_chan_setup(struct scmi_chan_info *cinfo, struct device *dev,
 	if (ret < 0)
 		return ret;
 
+	scmi_info->invoke_fn = get_invoke_function(dev);
+	if (IS_ERR(scmi_info->invoke_fn))
+		return PTR_ERR(scmi_info->invoke_fn);
+
 	scmi_info->func_id = func_id;
 	scmi_info->cinfo = cinfo;
 	cinfo->transport_info = scmi_info;
@@ -106,7 +147,8 @@ static int smc_send_message(struct scmi_chan_info *cinfo,
 
 	shmem_tx_prepare(scmi_info->shmem, xfer);
 
-	arm_smccc_1_1_invoke(scmi_info->func_id, 0, 0, 0, 0, 0, 0, 0, &res);
+	scmi_info->invoke_fn(scmi_info->func_id, &res);
+
 	scmi_rx_callback(scmi_info->cinfo, shmem_read_header(scmi_info->shmem));
 
 	mutex_unlock(&smc_mutex);
