@@ -203,5 +203,37 @@ CONFIG_OPTIMIZE_INLINING=y
 CONFIG_DEBUG_SECTION_MISMATCH=y
 CONFIG_DEBUG_KERNEL=y
 CONFIG_DEBUG_MISC=y
+# Enable early printk for test
 CONFIG_DEBUG_LL=y
 CONFIG_EARLY_PRINTK=y
+# v5.7 new features
+CONFIG_STACKPROTECTOR_PER_TASK=y
+# gcc plugins temp disabled for convinience
+# CONFIG_HAVE_GCC_PLUGINS is not set
+# CONFIG_GCC_PLUGINS is not set
+# CONFIG_GCC_PLUGIN_LATENT_ENTROPY is not set
+# CONFIG_GCC_PLUGIN_RANDSTRUCT is not set
+# CONFIG_GCC_PLUGIN_ARM_SSP_PER_TASK is not set
+# CONFIG_IPV6 is not set
+# CONFIG_IPV6_ROUTER_PREF is not set
+# CONFIG_IPV6_OPTIMISTIC_DAD is not set
+# CONFIG_INET6_AH is not set
+# CONFIG_INET6_ESP is not set
+# CONFIG_INET6_IPCOMP is not set
+# CONFIG_IPV6_MIP6 is not set
+# CONFIG_IPV6_VTI is not set
+# CONFIG_IPV6_SIT is not set
+# CONFIG_IPV6_SIT_6RD is not set
+# CONFIG_IPV6_TUNNEL is not set
+# CONFIG_IPV6_MULTIPLE_TABLES is not set
+# CONFIG_IPV6_MROUTE is not set
+# CONFIG_IPV6_SEG6_LWTUNNEL is not set
+# CONFIG_IPV6_SEG6_HMAC is not set
+# CONFIG_IPV6_RPL_LWTUNNEL is not set
+# CONFIG_MDIO_DEVICE is not set
+# CONFIG_INPUT_TOUCHSCREEN is not set
+# CONFIG_VIRTIO_MENU is not set
+# CONFIG_VDPA_MENU is not set
+# CONFIG_PWM is not set
+# CONFIG_MOST is not set
+
