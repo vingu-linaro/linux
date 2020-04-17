@@ -335,11 +335,11 @@ static const struct tee_desc optee_supp_desc = {
 	.flags = TEE_DESC_PRIVILEGED,
 };
 
-static bool optee_msg_api_uid_is_optee_api(optee_invoke_fn *invoke_fn)
+static bool optee_msg_api_uid_is_optee_api(void)
 {
 	struct arm_smccc_res res;
 
-	invoke_fn(OPTEE_SMC_CALLS_UID, 0, 0, 0, 0, 0, 0, 0, &res);
+	arm_smccc_1_0_invoke(OPTEE_SMC_CALLS_UID, 0, 0, 0, 0, 0, 0, 0, &res);
 
 	if (res.a0 == OPTEE_MSG_UID_0 && res.a1 == OPTEE_MSG_UID_1 &&
 	    res.a2 == OPTEE_MSG_UID_2 && res.a3 == OPTEE_MSG_UID_3)
@@ -347,7 +347,7 @@ static bool optee_msg_api_uid_is_optee_api(optee_invoke_fn *invoke_fn)
 	return false;
 }
 
-static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
+static void optee_msg_get_os_revision(void)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -358,8 +358,8 @@ static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
 		}
 	};
 
-	invoke_fn(OPTEE_SMC_CALL_GET_OS_REVISION, 0, 0, 0, 0, 0, 0, 0,
-		  &res.smccc);
+	arm_smccc_1_0_invoke(OPTEE_SMC_CALL_GET_OS_REVISION,
+			     0, 0, 0, 0, 0, 0, 0, &res.smccc);
 
 	if (res.result.build_id)
 		pr_info("revision %lu.%lu (%08lx)", res.result.major,
@@ -368,14 +368,15 @@ static void optee_msg_get_os_revision(optee_invoke_fn *invoke_fn)
 		pr_info("revision %lu.%lu", res.result.major, res.result.minor);
 }
 
-static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
+static bool optee_msg_api_revision_is_compatible(void)
 {
 	union {
 		struct arm_smccc_res smccc;
 		struct optee_smc_calls_revision_result result;
 	} res;
 
-	invoke_fn(OPTEE_SMC_CALLS_REVISION, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
+	arm_smccc_1_0_invoke(OPTEE_SMC_CALLS_REVISION,
+			     0, 0, 0, 0, 0, 0, 0, &res.smccc);
 
 	if (res.result.major == OPTEE_MSG_REVISION_MAJOR &&
 	    (int)res.result.minor >= OPTEE_MSG_REVISION_MINOR)
@@ -383,8 +384,7 @@ static bool optee_msg_api_revision_is_compatible(optee_invoke_fn *invoke_fn)
 	return false;
 }
 
-static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
-					    u32 *sec_caps)
+static bool optee_msg_exchange_capabilities(u32 *sec_caps)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -400,8 +400,8 @@ static bool optee_msg_exchange_capabilities(optee_invoke_fn *invoke_fn,
 	if (!IS_ENABLED(CONFIG_SMP) || nr_cpu_ids == 1)
 		a1 |= OPTEE_SMC_NSEC_CAP_UNIPROCESSOR;
 
-	invoke_fn(OPTEE_SMC_EXCHANGE_CAPABILITIES, a1, 0, 0, 0, 0, 0, 0,
-		  &res.smccc);
+	arm_smccc_1_0_invoke(OPTEE_SMC_EXCHANGE_CAPABILITIES, a1,
+			     0, 0, 0, 0, 0, 0, &res.smccc);
 
 	if (res.result.status != OPTEE_SMC_RETURN_OK)
 		return false;
@@ -437,8 +437,7 @@ static struct tee_shm_pool *optee_config_dyn_shm(void)
 	return rc;
 }
 
-static struct tee_shm_pool *
-optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
+static struct tee_shm_pool *optee_config_shm_memremap(void **memremaped_shm)
 {
 	union {
 		struct arm_smccc_res smccc;
@@ -455,7 +454,8 @@ optee_config_shm_memremap(optee_invoke_fn *invoke_fn, void **memremaped_shm)
 	void *rc;
 	const int sz = OPTEE_SHM_NUM_PRIV_PAGES * PAGE_SIZE;
 
-	invoke_fn(OPTEE_SMC_GET_SHM_CONFIG, 0, 0, 0, 0, 0, 0, 0, &res.smccc);
+	arm_smccc_1_0_invoke(OPTEE_SMC_GET_SHM_CONFIG,
+			     0, 0, 0, 0, 0, 0, 0, &res.smccc);
 	if (res.result.status != OPTEE_SMC_RETURN_OK) {
 		pr_err("static shm service not available\n");
 		return ERR_PTR(-ENOENT);
@@ -515,45 +515,6 @@ err_memunmap:
 	return rc;
 }
 
-/* Simple wrapper functions to be able to use a function pointer */
-static void optee_smccc_smc(unsigned long a0, unsigned long a1,
-			    unsigned long a2, unsigned long a3,
-			    unsigned long a4, unsigned long a5,
-			    unsigned long a6, unsigned long a7,
-			    struct arm_smccc_res *res)
-{
-	arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res);
-}
-
-static void optee_smccc_hvc(unsigned long a0, unsigned long a1,
-			    unsigned long a2, unsigned long a3,
-			    unsigned long a4, unsigned long a5,
-			    unsigned long a6, unsigned long a7,
-			    struct arm_smccc_res *res)
-{
-	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
-}
-
-static optee_invoke_fn *get_invoke_func(struct device *dev)
-{
-	const char *method;
-
-	pr_info("probing for conduit method.\n");
-
-	if (device_property_read_string(dev, "method", &method)) {
-		pr_warn("missing \"method\" property\n");
-		return ERR_PTR(-ENXIO);
-	}
-
-	if (!strcmp("hvc", method))
-		return optee_smccc_hvc;
-	else if (!strcmp("smc", method))
-		return optee_smccc_smc;
-
-	pr_warn("invalid \"method\" property: %s\n", method);
-	return ERR_PTR(-EINVAL);
-}
-
 static int optee_remove(struct platform_device *pdev)
 {
 	struct optee *optee = platform_get_drvdata(pdev);
@@ -586,7 +547,6 @@ static int optee_remove(struct platform_device *pdev)
 
 static int optee_probe(struct platform_device *pdev)
 {
-	optee_invoke_fn *invoke_fn;
 	struct tee_shm_pool *pool = ERR_PTR(-EINVAL);
 	struct optee *optee = NULL;
 	void *memremaped_shm = NULL;
@@ -594,23 +554,23 @@ static int optee_probe(struct platform_device *pdev)
 	u32 sec_caps;
 	int rc;
 
-	invoke_fn = get_invoke_func(&pdev->dev);
-	if (IS_ERR(invoke_fn))
-		return PTR_ERR(invoke_fn);
+	rc = devm_arm_smccc_1_0_set_conduit(&pdev->dev);
+	if (rc)
+		return rc;
 
-	if (!optee_msg_api_uid_is_optee_api(invoke_fn)) {
+	if (!optee_msg_api_uid_is_optee_api()) {
 		pr_warn("api uid mismatch\n");
 		return -EINVAL;
 	}
 
-	optee_msg_get_os_revision(invoke_fn);
+	optee_msg_get_os_revision();
 
-	if (!optee_msg_api_revision_is_compatible(invoke_fn)) {
+	if (!optee_msg_api_revision_is_compatible()) {
 		pr_warn("api revision mismatch\n");
 		return -EINVAL;
 	}
 
-	if (!optee_msg_exchange_capabilities(invoke_fn, &sec_caps)) {
+	if (!optee_msg_exchange_capabilities(&sec_caps)) {
 		pr_warn("capabilities mismatch\n");
 		return -EINVAL;
 	}
@@ -625,7 +585,7 @@ static int optee_probe(struct platform_device *pdev)
 	 * If dynamic shared memory is not available or failed - try static one
 	 */
 	if (IS_ERR(pool) && (sec_caps & OPTEE_SMC_SEC_CAP_HAVE_RESERVED_SHM))
-		pool = optee_config_shm_memremap(invoke_fn, &memremaped_shm);
+		pool = optee_config_shm_memremap(&memremaped_shm);
 
 	if (IS_ERR(pool))
 		return PTR_ERR(pool);
@@ -636,7 +596,6 @@ static int optee_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	optee->invoke_fn = invoke_fn;
 	optee->sec_caps = sec_caps;
 
 	teedev = tee_device_alloc(&optee_desc, NULL, pool, optee);

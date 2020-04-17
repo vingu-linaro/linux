@@ -137,9 +137,9 @@ u32 optee_do_call_with_arg(struct tee_context *ctx, phys_addr_t parg)
 	while (true) {
 		struct arm_smccc_res res;
 
-		optee->invoke_fn(param.a0, param.a1, param.a2, param.a3,
-				 param.a4, param.a5, param.a6, param.a7,
-				 &res);
+		arm_smccc_1_0_invoke(param.a0, param.a1, param.a2, param.a3,
+				     param.a4, param.a5, param.a6, param.a7,
+				     &res);
 
 		if (res.a0 == OPTEE_SMC_RETURN_ETHREAD_LIMIT) {
 			/*
@@ -395,8 +395,8 @@ void optee_enable_shm_cache(struct optee *optee)
 	while (true) {
 		struct arm_smccc_res res;
 
-		optee->invoke_fn(OPTEE_SMC_ENABLE_SHM_CACHE, 0, 0, 0, 0, 0, 0,
-				 0, &res);
+		arm_smccc_1_0_invoke(OPTEE_SMC_ENABLE_SHM_CACHE,
+				     0, 0, 0, 0, 0, 0, 0, &res);
 		if (res.a0 == OPTEE_SMC_RETURN_OK)
 			break;
 		optee_cq_wait_for_completion(&optee->call_queue, &w);
@@ -421,8 +421,8 @@ void optee_disable_shm_cache(struct optee *optee)
 			struct optee_smc_disable_shm_cache_result result;
 		} res;
 
-		optee->invoke_fn(OPTEE_SMC_DISABLE_SHM_CACHE, 0, 0, 0, 0, 0, 0,
-				 0, &res.smccc);
+		arm_smccc_1_0_invoke(OPTEE_SMC_DISABLE_SHM_CACHE,
+				     0, 0, 0, 0, 0, 0, 0, &res.smccc);
 		if (res.result.status == OPTEE_SMC_RETURN_ENOTAVAIL)
 			break; /* All shm's freed */
 		if (res.result.status == OPTEE_SMC_RETURN_OK) {
