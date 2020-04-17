@@ -34,12 +34,9 @@
 #include <linux/uaccess.h>
 
 /*
- * The call to use to reach the firmware.
+ * The SMCCC cnduit for the call to use to reach the firmware.
  */
-static asmlinkage void (*sdei_firmware_call)(unsigned long function_id,
-		      unsigned long arg0, unsigned long arg1,
-		      unsigned long arg2, unsigned long arg3,
-		      unsigned long arg4, struct arm_smccc_res *res);
+static enum arm_smccc_conduit sdei_firmware_call_conduit;
 
 /* entry point from firmware to arch asm code */
 static unsigned long sdei_entry_point;
@@ -144,14 +141,14 @@ static int invoke_sdei_fn(unsigned long function_id, unsigned long arg0,
 	int err = 0;
 	struct arm_smccc_res res;
 
-	if (sdei_firmware_call) {
+	if (sdei_firmware_call_conduit != SMCCC_CONDUIT_NONE) {
 		sdei_firmware_call(function_id, arg0, arg1, arg2, arg3, arg4,
 				   &res);
 		if (sdei_is_err(&res))
 			err = sdei_to_linux_errno(res.a0);
 	} else {
 		/*
-		 * !sdei_firmware_call means we failed to probe or called
+		 * No SMCCC conduit means we failed to probe or called
 		 * sdei_mark_interface_broken(). -EIO is not an error returned
 		 * by sdei_to_linux_errno() and is used to suppress messages
 		 * from this driver.
@@ -364,7 +361,7 @@ static void sdei_mark_interface_broken(void)
 {
 	pr_err("disabling SDEI firmware interface\n");
 	on_each_cpu(&_ipi_mask_cpu, NULL, true);
-	sdei_firmware_call = NULL;
+	sdei_firmware_call_conduit = SMCCC_CONDUIT_NONE;
 }
 
 static int sdei_platform_reset(void)
@@ -874,23 +871,19 @@ static struct notifier_block sdei_reboot_nb = {
 	.notifier_call = sdei_reboot_notifier,
 };
 
-static void sdei_smccc_smc(unsigned long function_id,
-			   unsigned long arg0, unsigned long arg1,
-			   unsigned long arg2, unsigned long arg3,
-			   unsigned long arg4, struct arm_smccc_res *res)
-{
-	arm_smccc_smc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
-}
-NOKPROBE_SYMBOL(sdei_smccc_smc);
 
-static void sdei_smccc_hvc(unsigned long function_id,
-			   unsigned long arg0, unsigned long arg1,
-			   unsigned long arg2, unsigned long arg3,
-			   unsigned long arg4, struct arm_smccc_res *res)
+static asmlinkage void sdei_firmware_call(unsigned long function_id,
+					  unsigned long arg0,
+					  unsigned long arg1,
+					  unsigned long arg2,
+					  unsigned long arg3,
+					  unsigned long arg4,
+					  struct arm_smccc_res *res)
 {
-	arm_smccc_hvc(function_id, arg0, arg1, arg2, arg3, arg4, 0, 0, res);
+	arm_smccc_1_0_invoke(function_id, arg0, arg1, arg2, arg3, arg4,
+			     0, 0, res);
 }
-NOKPROBE_SYMBOL(sdei_smccc_hvc);
+NOKPROBE_SYMBOL(sdei_firmware_call);
 
 int sdei_register_ghes(struct ghes *ghes, sdei_event_callback *normal_cb,
 		       sdei_event_callback *critical_cb)
@@ -959,48 +952,32 @@ int sdei_unregister_ghes(struct ghes *ghes)
 	return err;
 }
 
-static int sdei_get_conduit(struct platform_device *pdev)
+static enum arm_smccc_conduit sdei_get_conduit(struct platform_device *pdev)
 {
-	const char *method;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = ;
 
-	sdei_firmware_call = NULL;
-	if (np) {
-		if (of_property_read_string(np, "method", &method)) {
-			pr_warn("missing \"method\" property\n");
-			return SMCCC_CONDUIT_NONE;
-		}
-
-		if (!strcmp("hvc", method)) {
-			sdei_firmware_call = &sdei_smccc_hvc;
-			return SMCCC_CONDUIT_HVC;
-		} else if (!strcmp("smc", method)) {
-			sdei_firmware_call = &sdei_smccc_smc;
-			return SMCCC_CONDUIT_SMC;
-		}
-
-		pr_warn("invalid \"method\" property: %s\n", method);
+	if (pdev->dev.of_node) {
+		devm_arm_smccc_1_0_set_conduit(pdev->dev);
 	} else if (IS_ENABLED(CONFIG_ACPI) && !acpi_disabled) {
-		if (acpi_psci_use_hvc()) {
-			sdei_firmware_call = &sdei_smccc_hvc;
-			return SMCCC_CONDUIT_HVC;
-		} else {
-			sdei_firmware_call = &sdei_smccc_smc;
-			return SMCCC_CONDUIT_SMC;
-		}
+		if (acpi_psci_use_hvc())
+			arm_smccc_1_0_set_conduit(SMCCC_CONDUIT_HVC);
+		else
+			arm_smccc_1_0_set_conduit(SMCCC_CONDUIT_SMC);
 	}
 
-	return SMCCC_CONDUIT_NONE;
+	sdei_firmware_call_conduit = arm_smccc_1_0_get_conduit();
+
+	return sdei_firmware_call_conduit;
 }
 
 static int sdei_probe(struct platform_device *pdev)
 {
 	int err;
 	u64 ver = 0;
-	int conduit;
+	enum arm_smccc_conduit conduit;
 
 	conduit = sdei_get_conduit(pdev);
-	if (!sdei_firmware_call)
+	if (conduit == SMCCC_CONDUIT_NONE)
 		return 0;
 
 	err = sdei_api_get_version(&ver);
