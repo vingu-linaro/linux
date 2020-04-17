@@ -41,10 +41,6 @@
 /* stratix10 service layer clients */
 #define STRATIX10_RSU				"stratix10-rsu"
 
-typedef void (svc_invoke_fn)(unsigned long, unsigned long, unsigned long,
-			     unsigned long, unsigned long, unsigned long,
-			     unsigned long, unsigned long,
-			     struct arm_smccc_res *);
 struct stratix10_svc_chan;
 
 /**
@@ -60,7 +56,6 @@ struct stratix10_svc {
  * @sync_complete: state for a completion
  * @addr: physical address of shared memory block
  * @size: size of shared memory block
- * @invoke_fn: function to issue secure monitor or hypervisor call
  *
  * This struct is used to save physical address and size of shared memory
  * block. The shared memory blocked is allocated by secure monitor software
@@ -73,7 +68,6 @@ struct stratix10_svc_sh_memory {
 	struct completion sync_complete;
 	unsigned long addr;
 	unsigned long size;
-	svc_invoke_fn *invoke_fn;
 };
 
 /**
@@ -126,7 +120,6 @@ struct stratix10_svc_data {
  * @svc_fifo: a queue for storing service message data
  * @complete_status: state for completion
  * @svc_fifo_lock: protect access to service message data queue
- * @invoke_fn: function to issue secure monitor call or hypervisor call
  *
  * This struct is used to create communication channels for service clients, to
  * handle secure monitor or hypervisor call.
@@ -142,7 +135,6 @@ struct stratix10_svc_controller {
 	struct kfifo svc_fifo;
 	struct completion complete_status;
 	spinlock_t svc_fifo_lock;
-	svc_invoke_fn *invoke_fn;
 };
 
 /**
@@ -206,8 +198,8 @@ static void svc_thread_cmd_data_claim(struct stratix10_svc_controller *ctrl,
 
 	pr_debug("%s: claim back the submitted buffer\n", __func__);
 	do {
-		ctrl->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE,
-				0, 0, 0, 0, 0, 0, 0, &res);
+		arm_smccc_1_0_invoke(INTEL_SIP_SMC_FPGA_CONFIG_COMPLETED_WRITE,
+				     0, 0, 0, 0, 0, 0, 0, &res);
 
 		if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
 			if (!res.a1) {
@@ -256,8 +248,8 @@ static void svc_thread_cmd_config_status(struct stratix10_svc_controller *ctrl,
 
 	count_in_sec = FPGA_CONFIG_STATUS_TIMEOUT_SEC;
 	while (count_in_sec) {
-		ctrl->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_ISDONE,
-				0, 0, 0, 0, 0, 0, 0, &res);
+		arm_smccc_1_0_invoke(INTEL_SIP_SMC_FPGA_CONFIG_ISDONE,
+				     0, 0, 0, 0, 0, 0, 0, &res);
 		if ((res.a0 == INTEL_SIP_SMC_STATUS_OK) ||
 		    (res.a0 == INTEL_SIP_SMC_FPGA_CONFIG_STATUS_ERROR))
 			break;
@@ -420,7 +412,7 @@ static int svc_normal_to_secure_thread(void *data)
 			 __func__, (unsigned int)a0, (unsigned int)a1);
 		pr_debug(" a2=0x%016x\n", (unsigned int)a2);
 
-		ctrl->invoke_fn(a0, a1, a2, 0, 0, 0, 0, 0, &res);
+		arm_smccc_1_0_invoke(a0, a1, a2, 0, 0, 0, 0, 0, &res);
 
 		pr_debug("%s: after SMC call -- res.a0=0x%016x",
 			 __func__, (unsigned int)res.a0);
@@ -540,8 +532,8 @@ static int svc_normal_to_secure_shm_thread(void *data)
 	struct arm_smccc_res res;
 
 	/* SMC or HVC call to get shared memory info from secure world */
-	sh_mem->invoke_fn(INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM,
-			  0, 0, 0, 0, 0, 0, 0, &res);
+	arm_smccc_1_0_invoke(INTEL_SIP_SMC_FPGA_CONFIG_GET_MEM,
+			     0, 0, 0, 0, 0, 0, 0, &res);
 	if (res.a0 == INTEL_SIP_SMC_STATUS_OK) {
 		sh_mem->addr = res.a1;
 		sh_mem->size = res.a2;
@@ -659,73 +651,6 @@ svc_create_memory_pool(struct platform_device *pdev,
 	}
 
 	return genpool;
-}
-
-/**
- * svc_smccc_smc() - secure monitor call between normal and secure world
- * @a0: argument passed in registers 0
- * @a1: argument passed in registers 1
- * @a2: argument passed in registers 2
- * @a3: argument passed in registers 3
- * @a4: argument passed in registers 4
- * @a5: argument passed in registers 5
- * @a6: argument passed in registers 6
- * @a7: argument passed in registers 7
- * @res: result values from register 0 to 3
- */
-static void svc_smccc_smc(unsigned long a0, unsigned long a1,
-			  unsigned long a2, unsigned long a3,
-			  unsigned long a4, unsigned long a5,
-			  unsigned long a6, unsigned long a7,
-			  struct arm_smccc_res *res)
-{
-	arm_smccc_smc(a0, a1, a2, a3, a4, a5, a6, a7, res);
-}
-
-/**
- * svc_smccc_hvc() - hypervisor call between normal and secure world
- * @a0: argument passed in registers 0
- * @a1: argument passed in registers 1
- * @a2: argument passed in registers 2
- * @a3: argument passed in registers 3
- * @a4: argument passed in registers 4
- * @a5: argument passed in registers 5
- * @a6: argument passed in registers 6
- * @a7: argument passed in registers 7
- * @res: result values from register 0 to 3
- */
-static void svc_smccc_hvc(unsigned long a0, unsigned long a1,
-			  unsigned long a2, unsigned long a3,
-			  unsigned long a4, unsigned long a5,
-			  unsigned long a6, unsigned long a7,
-			  struct arm_smccc_res *res)
-{
-	arm_smccc_hvc(a0, a1, a2, a3, a4, a5, a6, a7, res);
-}
-
-/**
- * get_invoke_func() - invoke SMC or HVC call
- * @dev: pointer to device
- *
- * Return: function pointer to svc_smccc_smc or svc_smccc_hvc.
- */
-static svc_invoke_fn *get_invoke_func(struct device *dev)
-{
-	const char *method;
-
-	if (of_property_read_string(dev->of_node, "method", &method)) {
-		dev_warn(dev, "missing \"method\" property\n");
-		return ERR_PTR(-ENXIO);
-	}
-
-	if (!strcmp(method, "smc"))
-		return svc_smccc_smc;
-	if (!strcmp(method, "hvc"))
-		return svc_smccc_hvc;
-
-	dev_warn(dev, "invalid \"method\" property: %s\n", method);
-
-	return ERR_PTR(-EINVAL);
 }
 
 /**
@@ -979,20 +904,17 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	struct stratix10_svc_sh_memory *sh_memory;
 	struct stratix10_svc *svc;
 
-	svc_invoke_fn *invoke_fn;
 	size_t fifo_size;
 	int ret;
 
-	/* get SMC or HVC function */
-	invoke_fn = get_invoke_func(dev);
-	if (IS_ERR(invoke_fn))
+	/* get SMC or HVC conduit */
+	if (arm_smccc_1_0_set_device_conduit(&pdev->dev))
 		return -EINVAL;
 
 	sh_memory = devm_kzalloc(dev, sizeof(*sh_memory), GFP_KERNEL);
 	if (!sh_memory)
 		return -ENOMEM;
 
-	sh_memory->invoke_fn = invoke_fn;
 	ret = svc_get_sh_memory(pdev, sh_memory);
 	if (ret)
 		return ret;
@@ -1017,7 +939,6 @@ static int stratix10_svc_drv_probe(struct platform_device *pdev)
 	controller->chans = chans;
 	controller->genpool = genpool;
 	controller->task = NULL;
-	controller->invoke_fn = invoke_fn;
 	init_completion(&controller->complete_status);
 
 	fifo_size = sizeof(struct stratix10_svc_data) * SVC_NUM_DATA_IN_FIFO;
