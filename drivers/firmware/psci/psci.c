@@ -53,7 +53,6 @@ bool psci_tos_resident_on(int cpu)
 }
 
 struct psci_operations psci_ops = {
-	.conduit = SMCCC_CONDUIT_NONE,
 	.smccc_version = SMCCC_VERSION_1_0,
 };
 
@@ -62,12 +61,8 @@ enum arm_smccc_conduit arm_smccc_1_1_get_conduit(void)
 	if (psci_ops.smccc_version < SMCCC_VERSION_1_1)
 		return SMCCC_CONDUIT_NONE;
 
-	return psci_ops.conduit;
+	return arm_smccc_1_0_get_conduit();
 }
-
-typedef unsigned long (psci_fn)(unsigned long, unsigned long,
-				unsigned long, unsigned long);
-static psci_fn *invoke_psci_fn;
 
 enum psci_function {
 	PSCI_FN_CPU_SUSPEND,
@@ -120,23 +115,14 @@ bool psci_power_state_is_valid(u32 state)
 	return !(state & ~valid_mask);
 }
 
-static unsigned long __invoke_psci_fn_hvc(unsigned long function_id,
-			unsigned long arg0, unsigned long arg1,
-			unsigned long arg2)
+static unsigned long invoke_psci_fn(unsigned long function_id,
+				    unsigned long arg0, unsigned long arg1,
+				    unsigned long arg2)
 {
 	struct arm_smccc_res res;
 
-	arm_smccc_hvc(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res);
-	return res.a0;
-}
+	arm_smccc_1_0_invoke(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res);
 
-static unsigned long __invoke_psci_fn_smc(unsigned long function_id,
-			unsigned long arg0, unsigned long arg1,
-			unsigned long arg2)
-{
-	struct arm_smccc_res res;
-
-	arm_smccc_smc(function_id, arg0, arg1, arg2, 0, 0, 0, 0, &res);
 	return res.a0;
 }
 
@@ -229,41 +215,11 @@ static unsigned long psci_migrate_info_up_cpu(void)
 			      0, 0, 0);
 }
 
-static void set_conduit(enum arm_smccc_conduit conduit)
-{
-	switch (conduit) {
-	case SMCCC_CONDUIT_HVC:
-		invoke_psci_fn = __invoke_psci_fn_hvc;
-		break;
-	case SMCCC_CONDUIT_SMC:
-		invoke_psci_fn = __invoke_psci_fn_smc;
-		break;
-	default:
-		WARN(1, "Unexpected PSCI conduit %d\n", conduit);
-	}
-
-	psci_ops.conduit = conduit;
-}
-
 static int get_set_conduit_method(struct device_node *np)
 {
-	const char *method;
-
-	pr_info("probing for conduit method from DT.\n");
-
-	if (of_property_read_string(np, "method", &method)) {
-		pr_warn("missing \"method\" property\n");
+	if (of_arm_smccc_1_0_set_conduit(np))
 		return -ENXIO;
-	}
 
-	if (!strcmp("hvc", method)) {
-		set_conduit(SMCCC_CONDUIT_HVC);
-	} else if (!strcmp("smc", method)) {
-		set_conduit(SMCCC_CONDUIT_SMC);
-	} else {
-		pr_warn("invalid \"method\" property: %s\n", method);
-		return -EINVAL;
-	}
 	return 0;
 }
 
@@ -605,9 +561,9 @@ int __init psci_acpi_init(void)
 	pr_info("probing for conduit method from ACPI.\n");
 
 	if (acpi_psci_use_hvc())
-		set_conduit(SMCCC_CONDUIT_HVC);
+		arm_smccc_1_0_set_conduit(SMCCC_CONDUIT_HVC);
 	else
-		set_conduit(SMCCC_CONDUIT_SMC);
+		arm_smccc_1_0_set_conduit(SMCCC_CONDUIT_SMC);
 
 	return psci_probe();
 }
