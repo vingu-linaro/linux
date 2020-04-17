@@ -377,5 +377,112 @@ asmlinkage void __arm_smccc_hvc(unsigned long a0, unsigned long a1,
 			   ARM_SMCCC_OWNER_STANDARD_HYP,	\
 			   0x21)
 
+/* SMCCC v1.0 compliant invocation helpers */
+
+/*
+ * Like arm_smccc_1_0* but always returns SMCCC_RET_NOT_SUPPORTED.
+ * Used when the SMCCC conduit is not defined. The empty asm statement
+ * avoids compiler warnings about unused variables.
+ */
+#define __fail_smccc_1_0(...)						\
+	do {								\
+		__declare_args(7, __VA_ARGS__);				\
+		asm ("" __constraints(7));				\
+		___res->a0 = SMCCC_RET_NOT_SUPPORTED;			\
+	} while (0)
+
+/*
+ * arm_smccc_1_0_invoke() - make an SMCCC v1.0 compliant call
+ *
+ * This is a macro taking eight source arguments and an return structure.
+ * It uses the SMCCC conduit registered during driver(s) initialization.
+ *
+ * @a0-a7: arguments passed in registers 0 to 7
+ * @res: result values from registers 0 to 3
+ *
+ * This macro will make either an HVC call or an SMC call depending on the
+ * specified SMCCC conduit. If no valid conduit is available then -1
+ * (SMCCC_RET_NOT_SUPPORTED) is returned in @res.a0.
+ *
+ * The return value provides the conduit that was used.
+ */
+#define arm_smccc_1_0_invoke(...) ({					\
+		enum arm_smccc_conduit conduit = arm_smccc_1_0_get_conduit(); \
+									\
+		switch (conduit) {					\
+		case SMCCC_CONDUIT_HVC:					\
+			arm_smccc_hvc(__VA_ARGS__);			\
+			break;						\
+		case SMCCC_CONDUIT_SMC:					\
+			arm_smccc_smc(__VA_ARGS__);			\
+			break;						\
+		default:						\
+			__fail_smccc_1_0(__VA_ARGS__);			\
+			conduit = SMCCC_CONDUIT_NONE;			\
+		}							\
+		conduit;						\
+	})
+
+struct device;
+struct device_node;
+
+#ifdef CONFIG_HAVE_ARM_SMCCC
+/**
+ * arm_smccc_1_0_get_conduit() - Return registered SMCCC conduit
+ */
+enum arm_smccc_conduit arm_smccc_1_0_get_conduit(void);
+
+/**
+ * arm_smccc_1_0_set_conduit - Register SMCCC invocation conduit
+ * @conduit: conduit to register
+ *
+ * Return 0 on success and -EINVAL on failure.
+ */
+int arm_smccc_1_0_set_conduit(enum arm_smccc_conduit);
+
+/**
+ * devm_arm_smccc_1_0_set_conduit() - Set SMCCC v1.0 conduit if found in device
+ * @dev: Device instance
+ *
+ * Set the SMCCC invocation conduit based on device node if it has a "methhod"
+ * property that defines the SMCCC conduit to be used. If it has not, check a
+ * conduit is already registered.
+ *
+ * Return 0 on success, -ENXIO if no conduit found, -EINVAL otherwise.
+ */
+int devm_arm_smccc_1_0_set_conduit(struct device *dev);
+
+/**
+ * of_arm_smccc_1_0_set_conduit() - Set SMCCC v1.0 conduit if found in FDT node
+ * @np: Node instance
+ *
+ * Set the SMCCC invocation conduit based on device node if it has a "methhod"
+ * property that defines the SMCCC conduit to be used. If it has not, check a
+ * conduit is already registered.
+ *
+ * Return 0 on success, -ENXIO if no conduit found, -EINVAL otherwise.
+ */
+int of_arm_smccc_1_0_set_conduit(struct device_node *np);
+#else
+static inline enum arm_smccc_conduit arm_smccc_1_0_get_conduit(void)
+{
+	return SMCCC_CONDUIT_NONE;
+}
+
+static inline int arm_smccc_1_0_set_conduit(enum arm_smccc_conduit);
+{
+	return -EINVAL;
+}
+
+static inline int devm_arm_smccc_1_0_set_conduit(struct device *dev);
+{
+	return -EINVAL;
+}
+
+static inline int of_arm_smccc_1_0_set_conduit(struct device_node *np);
+{
+	return -EINVAL;
+}
+#endif /* CONFIG_HAVE_ARM_SMCCC */
 #endif /*__ASSEMBLY__*/
 #endif /*__LINUX_ARM_SMCCC_H*/
