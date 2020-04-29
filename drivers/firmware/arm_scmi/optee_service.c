@@ -90,6 +90,16 @@ struct optee_scmi_agent {
 
 static struct optee_scmi_agent agent_private;
 
+static struct scmi_shared_mem *optee_chan_get_shmem(struct optee_scmi_channel *channel,
+							   struct scmi_xfer *xfer)
+{
+	if (channel->tee_shm)
+		return tee_shm_get_va(channel->tee_shm,
+			       xfer->hdr.seq * scmi_optee_desc.max_msg_size);
+	else
+		return channel->shmem;
+}
+
 static int get_channel_count(void)
 {
 	int ret = 0;
@@ -159,7 +169,7 @@ static int get_channel(u32 session_id, struct resource *res, int agent_id, int *
 	return 0;
 }
 
-static int process_event(struct optee_scmi_channel *channel)
+static int process_event(struct optee_scmi_channel *channel, struct scmi_xfer *xfer)
 {
 	int ret = 0;
 	struct tee_ioctl_invoke_arg inv_arg;
@@ -183,7 +193,7 @@ static int process_event(struct optee_scmi_channel *channel)
 			.u.memref = {
 				.shm = channel->tee_shm,
 				.size = scmi_optee_desc.max_msg_size,
-				.shm_offs = 0, //xfer->hdr.seq * scmi_optee_desc.max_msg_size,
+				.shm_offs = xfer->hdr.seq * scmi_optee_desc.max_msg_size,
 			},
 		};
 	}
@@ -326,7 +336,7 @@ static int optee_chan_setup_dynamic(struct scmi_chan_info *cinfo,
 {
 	struct device *cdev = cinfo->dev;
 	struct resource res;
-	int ret;
+	int i, ret;
 
 	/* Resource will be dynamically allocated */
 	res.start = res.end = 0;
@@ -348,6 +358,12 @@ static int optee_chan_setup_dynamic(struct scmi_chan_info *cinfo,
 	}
 
 	channel->shmem = tee_shm_get_va(channel->tee_shm, 0);
+
+	/* Clear channels */
+	for (i = 0; i < scmi_optee_desc.max_msg; i++) {
+		void *buffer = (void *)channel->shmem + i * scmi_optee_desc.max_msg_size;
+		shmem_clear_channel(buffer);
+	}
 
 	return 0;
 }
@@ -418,18 +434,20 @@ static int optee_send_message(struct scmi_chan_info *cinfo,
 			      struct scmi_xfer *xfer)
 {
 	struct optee_scmi_channel *channel = cinfo->transport_info;
+	struct scmi_shared_mem *shmem;
 	int ret;
 
 	if (!channel && !agent_private.ctx)
 		return -EINVAL;
 
-	shmem_write_message(channel->shmem, xfer);
+	shmem = optee_chan_get_shmem(channel, xfer);
+	shmem_write_message(shmem, xfer);
 
-	ret = process_event(channel);
+	ret = process_event(channel, xfer);
 	if (ret)
 		return ret;
 
-	scmi_rx_callback(cinfo, shmem_read_header(channel->shmem));
+	scmi_rx_callback(cinfo, shmem_read_header(shmem));
 
 	return 0;
 }
@@ -438,16 +456,22 @@ static void optee_fetch_response(struct scmi_chan_info *cinfo,
 				 struct scmi_xfer *xfer)
 {
 	struct optee_scmi_channel *channel = cinfo->transport_info;
+	struct scmi_shared_mem *shmem;
 
-	shmem_fetch_response(channel->shmem, xfer);
+	shmem = optee_chan_get_shmem(channel, xfer);
+
+	shmem_fetch_response(shmem, xfer);
 }
 
 static bool optee_poll_done(struct scmi_chan_info *cinfo,
 			    struct scmi_xfer *xfer)
 {
 	struct optee_scmi_channel *channel = cinfo->transport_info;
+	struct scmi_shared_mem *shmem;
 
-	return shmem_poll_done(channel->shmem, xfer);
+	shmem = optee_chan_get_shmem(channel, xfer);
+
+	return shmem_poll_done(shmem, xfer);
 }
 
 static struct scmi_transport_ops scmi_optee_ops = {
@@ -461,7 +485,7 @@ static struct scmi_transport_ops scmi_optee_ops = {
 const struct scmi_desc scmi_optee_desc = {
 	.ops = &scmi_optee_ops,
 	.max_rx_timeout_ms = 30, /* We may increase this if required */
-	.max_msg = 1,
+	.max_msg = 8,
 	.max_msg_size = 128,
 };
 
