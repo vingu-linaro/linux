@@ -213,8 +213,8 @@ static void optee_get_version(struct tee_device *teedev,
 	};
 	struct optee *optee = tee_get_drvdata(teedev);
 
-	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
-		v.gen_caps |= TEE_GEN_CAP_REG_MEM;
+//	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+//		v.gen_caps |= TEE_GEN_CAP_REG_MEM;
 	*vers = v;
 }
 
@@ -618,8 +618,8 @@ static int optee_probe(struct platform_device *pdev)
 	/*
 	 * Try to use dynamic shared memory if possible
 	 */
-	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
-		pool = optee_config_dyn_shm();
+//	if (sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+//		pool = optee_config_dyn_shm();
 
 	/*
 	 * If dynamic shared memory is not available or failed - try static one
@@ -670,8 +670,8 @@ static int optee_probe(struct platform_device *pdev)
 
 	optee_enable_shm_cache(optee);
 
-	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
-		pr_info("dynamic shared memory is enabled\n");
+//	if (optee->sec_caps & OPTEE_SMC_SEC_CAP_DYNAMIC_SHM)
+//		pr_info("dynamic shared memory is enabled\n");
 
 	platform_set_drvdata(pdev, optee);
 
