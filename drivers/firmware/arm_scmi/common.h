@@ -220,6 +220,7 @@ void scmi_free_channel(struct scmi_chan_info *cinfo, struct idr *idr, int id);
 /* shmem related declarations */
 struct scmi_shared_mem;
 
+void shmem_clear_channel(struct scmi_shared_mem *shmem);
 void shmem_write_message(struct scmi_shared_mem __iomem *shmem,
 			 struct scmi_xfer *xfer);
 u32 shmem_read_header(struct scmi_shared_mem __iomem *shmem);

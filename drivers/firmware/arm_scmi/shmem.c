@@ -29,6 +29,11 @@ struct scmi_shared_mem {
 	u8 msg_payload[];
 };
 
+void shmem_clear_channel(struct scmi_shared_mem *shmem)
+{
+		iowrite32(SCMI_SHMEM_CHAN_STAT_CHANNEL_FREE, &shmem->channel_status);
+}
+
 void shmem_write_message(struct scmi_shared_mem __iomem *shmem,
 			 struct scmi_xfer *xfer)
 {

@@ -159,7 +159,7 @@ static int get_channel(u32 session_id, struct resource *res, int agent_id, int *
 	return 0;
 }
 
-static int process_event(unsigned int channel_id)
+static int process_event(struct optee_scmi_channel *channel)
 {
 	int ret = 0;
 	struct tee_ioctl_invoke_arg inv_arg;
@@ -183,7 +183,7 @@ static int process_event(unsigned int channel_id)
 			.u.memref = {
 				.shm = channel->tee_shm,
 				.size = scmi_optee_desc.max_msg_size,
-				.shm_offs = 0; //xfer->hdr.seq * scmi_optee_desc.max_msg_size,
+				.shm_offs = 0, //xfer->hdr.seq * scmi_optee_desc.max_msg_size,
 			},
 		};
 	}
@@ -425,7 +425,7 @@ static int optee_send_message(struct scmi_chan_info *cinfo,
 
 	shmem_write_message(channel->shmem, xfer);
 
-	ret = process_event(channel->channel_id);
+	ret = process_event(channel);
 	if (ret)
 		return ret;
 
