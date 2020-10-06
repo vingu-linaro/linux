@@ -35,24 +35,28 @@
 			compatible = "arm,armv8";
 			reg = <0x0 0x0>;
 			next-level-cache = <&L2_0>;
+			clocks = <&scmi_dvfs 0>;
 		};
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x1>;
 			next-level-cache = <&L2_0>;
+			clocks = <&scmi_dvfs 0>;
 		};
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x2>;
 			next-level-cache = <&L2_0>;
+			clocks = <&scmi_dvfs 1>;
 		};
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,armv8";
 			reg = <0x0 0x3>;
 			next-level-cache = <&L2_0>;
+			clocks = <&scmi_dvfs 1>;
 		};
 
 		L2_0: l2-cache0 {
@@ -225,6 +229,38 @@
 			compatible = "linaro,optee-tz";
 			method = "smc";
 		};
+
+		scmi0: scmi0 {
+			compatible = "linaro,scmi-optee";
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			//memory-region = <&scmi_res0>;
+			agent-id = <0x0023 0x3023>;
+
+			scmi_devpd: protocol@11 {
+				reg = <0x11>;
+				#power-domain-cells = <1>;
+			};
+
+			scmi_clk0: protocol@14 {
+				reg = <0x14>;
+				#clock-cells = <1>;
+			};
+
+			scmi_sensors0: protocol@15 {
+				reg = <0x15>;
+				#thermal-sensor-cells = <1>;
+			};
+
+			scmi_dvfs: protocol@13 {
+				reg = <0x13>;
+				#clock-cells = <1>;
+				agent-id = <0x2023>;
+			};
+		};
+
+
 	};
 
 };
