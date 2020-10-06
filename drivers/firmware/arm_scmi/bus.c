@@ -84,8 +84,8 @@ static int scmi_dev_probe(struct device *dev)
 		return ret;
 
 	/* Skip protocol initialisation for additional devices */
-	idr_replace(&scmi_protocols, &scmi_protocol_dummy_init,
-		    scmi_dev->protocol_id);
+//	idr_replace(&scmi_protocols, &scmi_protocol_dummy_init,
+//		    scmi_dev->protocol_id);
 
 	return scmi_drv->probe(scmi_dev);
 }
