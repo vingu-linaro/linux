@@ -251,12 +251,19 @@
 			scmi_sensors0: protocol@15 {
 				reg = <0x15>;
 				#thermal-sensor-cells = <1>;
+
 			};
 
 			scmi_dvfs: protocol@13 {
 				reg = <0x13>;
 				#clock-cells = <1>;
 				agent-id = <0x2003 0x3003>;
+			};
+
+			scmi_irq: protocol@80 {
+				reg = <0x80>;
+				interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			};
 		};
 
