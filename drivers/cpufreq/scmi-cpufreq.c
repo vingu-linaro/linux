@@ -19,14 +19,31 @@
 #include <linux/slab.h>
 #include <linux/scmi_protocol.h>
 #include <linux/types.h>
+#include <linux/notifier.h>
 
 struct scmi_data {
 	int domain_id;
 	struct device *cpu_dev;
+	struct notifier_block nb_limits;
+	struct notifier_block nb_level;
 };
 
 static struct scmi_protocol_handle *ph;
 static const struct scmi_perf_proto_ops *perf_ops;
+
+static const struct scmi_handle *perf_handle;
+
+static int
+cpufreq_notify_level(struct notifier_block *nb,
+			   unsigned long val,
+			   void *data)
+{
+	struct scmi_perf_level_report *r = data;
+
+	pr_info("cpufreq_notify_level event %d domain %d level %u received\n", val, r->domain_id, r->performance_level);
+
+	return 0;
+}
 
 static unsigned int scmi_cpufreq_get_rate(unsigned int cpu)
 {
@@ -223,6 +240,15 @@ static int scmi_cpufreq_init(struct cpufreq_policy *policy)
 	policy->fast_switch_possible =
 		perf_ops->fast_switch_possible(ph, cpu_dev);
 
+#if 1
+	priv->nb_level.notifier_call = cpufreq_notify_level;
+	ret = perf_handle->notify_ops->event_notifier_register(perf_handle,
+			SCMI_PROTOCOL_PERF, 1, NULL, &priv->nb_level);
+	if (ret) {
+		dev_warn(cpu_dev, "failed to register perf level notification\n");
+	}
+#endif
+
 	free_cpumask_var(opp_shared_cpus);
 	return 0;
 
@@ -273,6 +299,7 @@ static int scmi_cpufreq_probe(struct scmi_device *sdev)
 
 	if (!handle)
 		return -ENODEV;
+	perf_handle = handle;
 
 	perf_ops = handle->devm_protocol_get(sdev, SCMI_PROTOCOL_PERF, &ph);
 	if (IS_ERR(perf_ops))
